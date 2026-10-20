@@ -1,10 +1,6 @@
 package com.udb.mifinanza.ui.screens
 
-import android.app.Activity
 import androidx.compose.foundation.background
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import com.udb.mifinanza.ui.components.LogoPlaceholder
 import com.udb.mifinanza.ui.components.OutlinedAppButton
 import com.udb.mifinanza.ui.components.PrimaryButton
+import com.udb.mifinanza.ui.components.StatusBarIcons
 import com.udb.mifinanza.ui.theme.Ink300
 import com.udb.mifinanza.ui.theme.Ink500
 import com.udb.mifinanza.ui.theme.Ink600
@@ -33,16 +30,7 @@ import com.udb.mifinanza.ui.theme.White
 
 @Composable
 fun WelcomeScreen(onCreateAccount: () -> Unit, onHaveAccount: () -> Unit) {
-    // Fondo oscuro: iconos claros en la barra de estado mientras esta pantalla está visible.
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        DisposableEffect(Unit) {
-            val controller = (view.context as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view) }
-            val previous = controller?.isAppearanceLightStatusBars
-            controller?.isAppearanceLightStatusBars = false
-            onDispose { if (previous != null) controller.isAppearanceLightStatusBars = previous }
-        }
-    }
+    StatusBarIcons(dark = false)
     Column(
         modifier = Modifier
             .fillMaxSize()

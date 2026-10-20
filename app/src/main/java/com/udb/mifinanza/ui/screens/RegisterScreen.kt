@@ -1,6 +1,5 @@
 package com.udb.mifinanza.ui.screens
 
-import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,14 +19,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -35,12 +32,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
 import com.udb.mifinanza.ui.components.AppTopBar
 import com.udb.mifinanza.ui.components.CheckboxRow
 import com.udb.mifinanza.ui.components.LabeledTextField
 import com.udb.mifinanza.ui.components.PrimaryButton
 import com.udb.mifinanza.ui.components.SelectField
+import com.udb.mifinanza.ui.components.StatusBarIcons
 import com.udb.mifinanza.ui.theme.Accent500
 import com.udb.mifinanza.ui.theme.Ink50
 import com.udb.mifinanza.ui.theme.Ink600
@@ -67,31 +64,16 @@ val CurrencyOptions = listOf(
 fun RegisterScreen(
     onBack: () -> Unit,
     onRegister: (name: String, email: String, password: String, currency: String) -> Unit,
-    onLogin: () -> Unit,
-    initialFullName: String = "",
-    initialEmail: String = "",
-    initialPassword: String = "",
-    initialConfirmPassword: String = "",
-    initialCurrency: String = "USD — Dólar estadounidense",
-    initialTermsAccepted: Boolean = false
+    onLogin: () -> Unit
 ) {
-    // Configurar iconos oscuros en la barra de estado (fondo blanco de la AppTopBar)
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        DisposableEffect(Unit) {
-            val controller = (view.context as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view) }
-            val previous = controller?.isAppearanceLightStatusBars
-            controller?.isAppearanceLightStatusBars = true
-            onDispose { if (previous != null) controller.isAppearanceLightStatusBars = previous }
-        }
-    }
+    StatusBarIcons(dark = true)
 
-    var fullName by remember { mutableStateOf(initialFullName) }
-    var email by remember { mutableStateOf(initialEmail) }
-    var password by remember { mutableStateOf(initialPassword) }
-    var confirmPassword by remember { mutableStateOf(initialConfirmPassword) }
-    var selectedCurrency by remember { mutableStateOf(initialCurrency) }
-    var termsAccepted by remember { mutableStateOf(initialTermsAccepted) }
+    var fullName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var selectedCurrency by remember { mutableStateOf(CurrencyOptions.first()) }
+    var termsAccepted by remember { mutableStateOf(false) }
 
     val passwordsDoNotMatch = confirmPassword.isNotEmpty() && password != confirmPassword
     val passwordErrorText = if (passwordsDoNotMatch) "Las contraseñas no coinciden" else null
@@ -103,7 +85,6 @@ fun RegisterScreen(
             .navigationBarsPadding()
             .imePadding()
     ) {
-        // Encabezado superior blanco con barra de estado y divisor
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -116,7 +97,6 @@ fun RegisterScreen(
             )
         }
 
-        // Contenido con soporte de desplazamiento y distribución hacia abajo
         BoxWithConstraints(
             modifier = Modifier
                 .weight(1f)
@@ -131,7 +111,6 @@ fun RegisterScreen(
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Formulario de campos
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -167,7 +146,6 @@ fun RegisterScreen(
                         onValueChange = { password = it },
                         placeholder = "••••••••",
                         isPassword = true,
-                        showToggle = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Next
@@ -203,7 +181,6 @@ fun RegisterScreen(
                     )
                 }
 
-                // Botón Registrarme y Enlace a Iniciar sesión
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -245,32 +222,8 @@ fun RegisterScreen(
     }
 }
 
-@Preview(name = "Diseño Idéntico (Referencia)", showBackground = true, widthDp = 360, heightDp = 800)
+@Preview(showBackground = true, widthDp = 360, heightDp = 800)
 @Composable
-private fun RegisterMockupPreview() {
-    MiFinanzaTheme {
-        RegisterScreen(
-            onBack = {},
-            onRegister = { _, _, _, _ -> },
-            onLogin = {},
-            initialFullName = "María Fernanda Ruiz",
-            initialEmail = "m.ruiz@correo.com",
-            initialPassword = "password123",
-            initialConfirmPassword = "pass",
-            initialCurrency = "USD — Dólar estadounidense",
-            initialTermsAccepted = true
-        )
-    }
-}
-
-@Preview(name = "Formulario Vacío", showBackground = true, widthDp = 360, heightDp = 800)
-@Composable
-private fun RegisterEmptyPreview() {
-    MiFinanzaTheme {
-        RegisterScreen(
-            onBack = {},
-            onRegister = { _, _, _, _ -> },
-            onLogin = {}
-        )
-    }
+private fun RegisterPreview() {
+    MiFinanzaTheme { RegisterScreen({}, { _, _, _, _ -> }, {}) }
 }

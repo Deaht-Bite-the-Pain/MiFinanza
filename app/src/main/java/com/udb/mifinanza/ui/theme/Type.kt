@@ -10,7 +10,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.udb.mifinanza.R
 
-// Manrope es una fuente variable: se piden los pesos que usa el diseño.
 @OptIn(ExperimentalTextApi::class)
 val Manrope = FontFamily(
     listOf(400, 500, 600, 700, 800).map { w ->

@@ -2,7 +2,6 @@ package com.udb.mifinanza.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Paleta tomada del diseño (App Finanzas - 16 Pantallas)
 val Ink950 = Color(0xFF00182F)
 val Ink900 = Color(0xFF0A2540)
 val Ink700 = Color(0xFF24425F)

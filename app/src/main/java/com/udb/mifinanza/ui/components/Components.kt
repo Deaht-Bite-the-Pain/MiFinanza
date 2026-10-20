@@ -1,5 +1,6 @@
 package com.udb.mifinanza.ui.components
 
+import android.app.Activity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
@@ -47,6 +50,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import com.udb.mifinanza.ui.theme.Accent500
 import com.udb.mifinanza.ui.theme.Danger500
 import com.udb.mifinanza.ui.theme.Ink200
@@ -61,6 +65,18 @@ import com.udb.mifinanza.ui.theme.White
 val FieldShape = RoundedCornerShape(6.dp)
 
 @Composable
+fun StatusBarIcons(dark: Boolean) {
+    val view = LocalView.current
+    if (view.isInEditMode) return
+    DisposableEffect(dark) {
+        val controller = (view.context as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view) }
+        val previous = controller?.isAppearanceLightStatusBars
+        controller?.isAppearanceLightStatusBars = dark
+        onDispose { if (previous != null) controller.isAppearanceLightStatusBars = previous }
+    }
+}
+
+@Composable
 fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Button(
         onClick = onClick,
@@ -72,7 +88,6 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
     }
 }
 
-/** Botón con borde, usado sobre fondos oscuros (splash). */
 @Composable
 fun OutlinedAppButton(
     text: String,
@@ -92,7 +107,6 @@ fun OutlinedAppButton(
     }
 }
 
-/** Marcador de posición del logo (el diseño lo deja pendiente). */
 @Composable
 fun LogoPlaceholder(size: Dp, cornerRadius: Dp, color: Color, textColor: Color = Ink400) {
     Box(
@@ -120,10 +134,6 @@ fun LogoPlaceholder(size: Dp, cornerRadius: Dp, color: Color, textColor: Color =
     }
 }
 
-/**
- * Campo de texto con etiqueta, como en el diseño: 48dp, borde 1dp (1.5dp azul al enfocar,
- * 1.5dp rojo con error). [showToggle] muestra MOSTRAR/OCULTAR en campos de contraseña.
- */
 @Composable
 fun LabeledTextField(
     label: String,
@@ -199,7 +209,6 @@ fun LabeledTextField(
     }
 }
 
-/** Selector desplegable con el mismo aspecto que los campos de texto. */
 @Composable
 fun SelectField(
     label: String,
@@ -241,7 +250,6 @@ fun SelectField(
     }
 }
 
-/** Barra superior blanca con flecha atrás y título (pantallas secundarias). */
 @Composable
 fun AppTopBar(
     title: String,

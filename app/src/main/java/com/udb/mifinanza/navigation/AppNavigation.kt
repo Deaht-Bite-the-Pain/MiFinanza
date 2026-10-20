@@ -26,15 +26,15 @@ fun AppNavigation() {
         }
         composable(Routes.LOGIN) {
             LoginScreen(
-                onLogin = { _, _, _ -> /* TODO: Firebase Auth */ },
-                onForgotPassword = { /* TODO: recuperar contraseña */ },
+                onLogin = { _, _, _ -> },
+                onForgotPassword = {},
                 onRegister = { navController.navigate(Routes.REGISTER) }
             )
         }
         composable(Routes.REGISTER) {
             RegisterScreen(
                 onBack = { navController.popBackStack() },
-                onRegister = { _, _, _, _ -> /* TODO: Firebase Auth */ },
+                onRegister = { _, _, _, _ -> },
                 onLogin = {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.WELCOME)
