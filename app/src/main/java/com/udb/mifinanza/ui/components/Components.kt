@@ -146,6 +146,7 @@ fun LabeledTextField(
     errorText: String? = null,
     enabled: Boolean = true,
     monospace: Boolean = false,
+    labelColor: Color = if (enabled) Ink600 else Ink400,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -154,6 +155,7 @@ fun LabeledTextField(
     val borderColor = when {
         hasError -> Danger500
         focused -> Accent500
+        !enabled -> Ink200
         else -> Ink300
     }
     val textStyle = if (monospace) {
@@ -163,7 +165,7 @@ fun LabeledTextField(
     }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = Ink600)
+        Text(label, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = labelColor)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
