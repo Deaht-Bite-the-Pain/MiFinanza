@@ -243,8 +243,12 @@ fun SelectField(
 
 /** Barra superior blanca con flecha atrás y título (pantallas secundarias). */
 @Composable
-fun AppTopBar(title: String, onBack: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().background(White)) {
+fun AppTopBar(
+    title: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth().background(White)) {
         Row(
             modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -256,18 +260,23 @@ fun AppTopBar(title: String, onBack: () -> Unit) {
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás", tint = Ink950, modifier = Modifier.size(22.dp))
             }
-            Text(title, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Ink950)
+            Text(title, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Ink950)
         }
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Ink200))
     }
 }
 
 @Composable
-fun CheckboxRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit, label: String) {
+fun CheckboxRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.clickable { onCheckedChange(!checked) }
+        modifier = modifier.clickable { onCheckedChange(!checked) }
     ) {
         Box(
             modifier = Modifier

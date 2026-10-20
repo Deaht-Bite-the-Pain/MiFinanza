@@ -5,11 +5,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.udb.mifinanza.ui.screens.LoginScreen
+import com.udb.mifinanza.ui.screens.RegisterScreen
 import com.udb.mifinanza.ui.screens.WelcomeScreen
 
 object Routes {
     const val WELCOME = "welcome"
     const val LOGIN = "login"
+    const val REGISTER = "register"
 }
 
 @Composable
@@ -18,7 +20,7 @@ fun AppNavigation() {
     NavHost(navController = navController, startDestination = Routes.WELCOME) {
         composable(Routes.WELCOME) {
             WelcomeScreen(
-                onCreateAccount = { /* TODO: pantalla de registro */ },
+                onCreateAccount = { navController.navigate(Routes.REGISTER) },
                 onHaveAccount = { navController.navigate(Routes.LOGIN) }
             )
         }
@@ -26,7 +28,18 @@ fun AppNavigation() {
             LoginScreen(
                 onLogin = { _, _, _ -> /* TODO: Firebase Auth */ },
                 onForgotPassword = { /* TODO: recuperar contraseña */ },
-                onRegister = { /* TODO: pantalla de registro */ }
+                onRegister = { navController.navigate(Routes.REGISTER) }
+            )
+        }
+        composable(Routes.REGISTER) {
+            RegisterScreen(
+                onBack = { navController.popBackStack() },
+                onRegister = { _, _, _, _ -> /* TODO: Firebase Auth */ },
+                onLogin = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.WELCOME)
+                    }
+                }
             )
         }
     }
