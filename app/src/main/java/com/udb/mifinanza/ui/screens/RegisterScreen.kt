@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.udb.mifinanza.ui.components.AppTopBar
 import com.udb.mifinanza.ui.components.CheckboxRow
+import com.udb.mifinanza.ui.components.ErrorBanner
 import com.udb.mifinanza.ui.components.LabeledTextField
 import com.udb.mifinanza.ui.components.PrimaryButton
 import com.udb.mifinanza.ui.components.SelectField
@@ -64,7 +65,9 @@ val CurrencyOptions = listOf(
 fun RegisterScreen(
     onBack: () -> Unit,
     onRegister: (name: String, email: String, password: String, currency: String) -> Unit,
-    onLogin: () -> Unit
+    onLogin: () -> Unit,
+    isLoading: Boolean = false,
+    errorMessage: String? = null
 ) {
     StatusBarIcons(dark = true)
 
@@ -74,6 +77,7 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var selectedCurrency by remember { mutableStateOf(CurrencyOptions.first()) }
     var termsAccepted by remember { mutableStateOf(false) }
+    var showTermsError by remember { mutableStateOf(false) }
 
     val passwordsDoNotMatch = confirmPassword.isNotEmpty() && password != confirmPassword
     val passwordErrorText = if (passwordsDoNotMatch) "Las contraseñas no coinciden" else null
@@ -188,10 +192,14 @@ fun RegisterScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    if (errorMessage != null) ErrorBanner(errorMessage)
+                    if (showTermsError) ErrorBanner("Debes aceptar los términos de uso para continuar.")
                     PrimaryButton(
                         text = "Registrarme",
+                        loading = isLoading,
                         onClick = {
-                            if (!passwordsDoNotMatch) {
+                            showTermsError = !termsAccepted
+                            if (!passwordsDoNotMatch && termsAccepted) {
                                 onRegister(fullName, email, password, selectedCurrency)
                             }
                         }

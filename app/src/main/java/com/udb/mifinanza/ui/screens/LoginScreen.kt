@@ -28,6 +28,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.udb.mifinanza.ui.components.CheckboxRow
+import com.udb.mifinanza.ui.components.ErrorBanner
 import com.udb.mifinanza.ui.components.LabeledTextField
 import com.udb.mifinanza.ui.components.LogoPlaceholder
 import com.udb.mifinanza.ui.components.PrimaryButton
@@ -43,7 +44,9 @@ import com.udb.mifinanza.ui.theme.MiFinanzaTheme
 fun LoginScreen(
     onLogin: (email: String, password: String, remember: Boolean) -> Unit,
     onForgotPassword: () -> Unit,
-    onRegister: () -> Unit
+    onRegister: () -> Unit,
+    isLoading: Boolean = false,
+    errorMessage: String? = null
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -111,8 +114,10 @@ fun LoginScreen(
                         modifier = Modifier.clickable(onClick = onForgotPassword)
                     )
                 }
+                if (errorMessage != null) ErrorBanner(errorMessage)
                 PrimaryButton(
                     text = "Iniciar sesión",
+                    loading = isLoading,
                     onClick = { onLogin(email, password, rememberMe) },
                     modifier = Modifier.padding(top = 4.dp)
                 )

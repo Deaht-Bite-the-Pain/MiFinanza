@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.udb.mifinanza.ui.theme.Accent500
+import com.udb.mifinanza.ui.theme.Danger100
 import com.udb.mifinanza.ui.theme.Danger500
 import com.udb.mifinanza.ui.theme.Ink200
 import com.udb.mifinanza.ui.theme.Ink300
@@ -77,14 +79,44 @@ fun StatusBarIcons(dark: Boolean) {
 }
 
 @Composable
-fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun PrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    loading: Boolean = false
+) {
     Button(
         onClick = onClick,
+        enabled = enabled && !loading,
         modifier = modifier.fillMaxWidth().height(48.dp),
         shape = FieldShape,
-        colors = ButtonDefaults.buttonColors(containerColor = Accent500, contentColor = White)
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Accent500,
+            contentColor = White,
+            disabledContainerColor = Accent500,
+            disabledContentColor = White
+        )
     ) {
-        Text(text, style = MaterialTheme.typography.labelLarge)
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = White, strokeWidth = 2.dp)
+        } else {
+            Text(text, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+/** Mensaje de error (rojo suave) para fallos de autenticación o de red. */
+@Composable
+fun ErrorBanner(message: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Danger100, RoundedCornerShape(10.dp))
+            .border(1.dp, Danger500, RoundedCornerShape(10.dp))
+            .padding(12.dp)
+    ) {
+        Text(message, fontFamily = Manrope, fontSize = 12.5.sp, lineHeight = 18.sp, color = Danger500)
     }
 }
 

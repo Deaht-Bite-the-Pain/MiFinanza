@@ -9,3 +9,6 @@
 .externalNativeBuild/
 .cxx/
 .kotlin/
+
+# Configuracion privada de Firebase (cada integrante descarga la suya)
+app/google-services.json
