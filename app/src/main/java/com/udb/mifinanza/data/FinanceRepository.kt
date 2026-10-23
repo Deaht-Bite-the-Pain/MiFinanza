@@ -211,13 +211,35 @@ class FinanceRepository(
             daysRemaining = if (daysLeft <= 6) daysLeft else 6
         )
 
+        val defaultBudgets = listOf(
+            CategoryBudget(id = "1", category = "Alimentación", spent = finalFoodExpense, limit = 300.0),
+            CategoryBudget(id = "2", category = "Transporte", spent = 88.0, limit = 150.0),
+            CategoryBudget(id = "3", category = "Ocio", spent = 132.0, limit = 120.0),
+            CategoryBudget(id = "4", category = "Servicios", spent = 45.0, limit = 200.0),
+            CategoryBudget(id = "5", category = "Salud", spent = 24.50, limit = 210.0)
+        )
+        val totalBudget = defaultBudgets.sumOf { it.limit }
+
         return FinanceSummary(
             availableBalance = available,
             monthlyIncome = finalMonthIncome,
             monthlyExpenses = finalMonthExpense,
+            totalBudgeted = totalBudget,
             budgetAlert = alert,
             monthlyBars = bars,
-            recentMovements = movements.take(5)
+            recentMovements = movements.take(5),
+            budgets = defaultBudgets
         )
+    }
+
+    suspend fun saveBudget(budget: CategoryBudget): Result<Unit> = runCatching {
+        val userId = uid ?: error("Sin sesión de usuario activa")
+        val coll = db.collection("users").document(userId).collection("budgets")
+        if (budget.id.isEmpty()) {
+            coll.add(budget.toMap()).await()
+        } else {
+            coll.document(budget.id).set(budget.toMap()).await()
+        }
+        Unit
     }
 }

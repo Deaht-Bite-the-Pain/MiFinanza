@@ -100,12 +100,42 @@ data class BudgetAlert(
         get() = if (limit > 0) ((spent / limit) * 100).toInt() else 0
 }
 
-/** Resumen financiero consolidado para la pantalla de inicio */
+/** Representa el presupuesto por categoría */
+data class CategoryBudget(
+    val id: String = "",
+    val category: String = "",
+    val spent: Double = 0.0,
+    val limit: Double = 0.0
+) {
+    val isExceeded: Boolean get() = spent > limit
+    val percentage: Int get() = if (limit > 0) ((spent / limit) * 100).toInt() else 0
+    val remaining: Double get() = (limit - spent).coerceAtLeast(0.0)
+    val exceededAmount: Double get() = (spent - limit).coerceAtLeast(0.0)
+
+    fun toMap(): Map<String, Any> = mapOf(
+        "category" to category,
+        "spent" to spent,
+        "limit" to limit
+    )
+
+    companion object {
+        fun fromMap(id: String, map: Map<String, Any?>): CategoryBudget = CategoryBudget(
+            id = id,
+            category = map["category"] as? String ?: "",
+            spent = (map["spent"] as? Number)?.toDouble() ?: 0.0,
+            limit = (map["limit"] as? Number)?.toDouble() ?: 0.0
+        )
+    }
+}
+
+/** Resumen financiero consolidado para la aplicación */
 data class FinanceSummary(
     val availableBalance: Double = 1284.50,
     val monthlyIncome: Double = 1850.00,
     val monthlyExpenses: Double = 565.50,
+    val totalBudgeted: Double = 980.00,
     val budgetAlert: BudgetAlert = BudgetAlert(),
     val monthlyBars: List<MonthlyExpenseBar> = emptyList(),
-    val recentMovements: List<Movement> = emptyList()
+    val recentMovements: List<Movement> = emptyList(),
+    val budgets: List<CategoryBudget> = emptyList()
 )

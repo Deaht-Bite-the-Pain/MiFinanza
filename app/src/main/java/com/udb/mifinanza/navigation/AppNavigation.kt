@@ -17,6 +17,7 @@ import com.udb.mifinanza.data.Movement
 import com.udb.mifinanza.data.MovementType
 import com.udb.mifinanza.ui.components.NavTab
 import com.udb.mifinanza.ui.finance.FinanceViewModel
+import com.udb.mifinanza.ui.screens.BudgetScreen
 import com.udb.mifinanza.ui.screens.ForgotPasswordScreen
 import com.udb.mifinanza.ui.screens.HomeScreen
 import com.udb.mifinanza.ui.screens.LoginScreen
@@ -35,6 +36,7 @@ object Routes {
     const val PROFILE = "profile"
     const val NEW_MOVEMENT = "new_movement"
     const val MOVEMENT_DETAIL = "movement_detail"
+    const val BUDGETS = "budgets"
 }
 
 @Composable
@@ -111,8 +113,11 @@ fun AppNavigation() {
                     navController.navigate(Routes.MOVEMENT_DETAIL)
                 },
                 onTabSelected = { tab ->
-                    if (tab == NavTab.Inicio) {
-                        // Ya estamos en Inicio
+                    when (tab) {
+                        NavTab.Inicio -> { /* Ya estamos en Inicio */ }
+                        NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
+                        NavTab.Movimientos -> { /* Vista de movimientos */ }
+                        NavTab.Historial -> { /* TODO */ }
                     }
                 },
                 financeViewModel = financeViewModel
@@ -156,12 +161,33 @@ fun AppNavigation() {
                     }
                 },
                 onTabSelected = { tab ->
-                    if (tab == NavTab.Inicio) {
-                        navController.navigate(Routes.HOME) {
+                    when (tab) {
+                        NavTab.Inicio -> navController.navigate(Routes.HOME) {
                             popUpTo(Routes.HOME) { inclusive = true }
                         }
+                        NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
+                        NavTab.Movimientos -> { /* Ya en movimientos */ }
+                        NavTab.Historial -> { /* TODO */ }
                     }
                 }
+            )
+        }
+        composable(Routes.BUDGETS) {
+            LaunchedEffect(Unit) {
+                financeViewModel.loadSummary()
+            }
+            BudgetScreen(
+                onTabSelected = { tab ->
+                    when (tab) {
+                        NavTab.Inicio -> navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.HOME) { inclusive = true }
+                        }
+                        NavTab.Presupuestos -> { /* Ya en Presupuestos */ }
+                        NavTab.Movimientos -> navController.navigate(Routes.HOME)
+                        NavTab.Historial -> { /* TODO */ }
+                    }
+                },
+                financeViewModel = financeViewModel
             )
         }
         composable(Routes.PROFILE) {
@@ -175,10 +201,13 @@ fun AppNavigation() {
                     navController.navigate(Routes.WELCOME) { popUpTo(0) }
                 },
                 onTabSelected = { tab ->
-                    if (tab == NavTab.Inicio) {
-                        navController.navigate(Routes.HOME) {
+                    when (tab) {
+                        NavTab.Inicio -> navController.navigate(Routes.HOME) {
                             popUpTo(Routes.HOME) { inclusive = true }
                         }
+                        NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
+                        NavTab.Movimientos -> navController.navigate(Routes.HOME)
+                        NavTab.Historial -> { /* TODO */ }
                     }
                 },
                 errorMessage = auth.error

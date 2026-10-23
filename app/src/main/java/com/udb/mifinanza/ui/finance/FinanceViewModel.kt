@@ -93,4 +93,19 @@ class FinanceViewModel(
                 }
         }
     }
+
+    fun saveBudget(budget: com.udb.mifinanza.data.CategoryBudget, onSuccess: () -> Unit) {
+        if (budget.limit <= 0.0) return
+        _state.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            repository.saveBudget(budget)
+                .onSuccess {
+                    loadSummary()
+                    onSuccess()
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(isLoading = false, error = e.localizedMessage) }
+                }
+        }
+    }
 }
