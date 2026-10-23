@@ -42,6 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.udb.mifinanza.data.CategoryBudget
+import com.udb.mifinanza.data.ExpenseCategories
+import com.udb.mifinanza.data.filterAmountInput
+import com.udb.mifinanza.data.formatMoney
+import com.udb.mifinanza.ui.components.ErrorBanner
+import com.udb.mifinanza.ui.components.LoadingBox
+import com.udb.mifinanza.ui.components.SelectField
 import com.udb.mifinanza.ui.components.BottomNavBar
 import com.udb.mifinanza.ui.components.LabeledTextField
 import com.udb.mifinanza.ui.components.NavTab
@@ -59,10 +65,13 @@ import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
 import com.udb.mifinanza.ui.theme.MiFinanzaTheme
 import com.udb.mifinanza.ui.theme.White
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 @Composable
 fun BudgetScreen(
+    currencySymbol: String,
     onTabSelected: (NavTab) -> Unit,
     financeViewModel: FinanceViewModel = viewModel()
 ) {
@@ -73,6 +82,11 @@ fun BudgetScreen(
     val budgets = summary.budgets
 
     var showNewBudgetDialog by remember { mutableStateOf(false) }
+    // Presupuesto que se está editando (null = crear uno nuevo).
+    var editingBudget by remember { mutableStateOf<CategoryBudget?>(null) }
+    val monthTitle = remember {
+        SimpleDateFormat("MMMM  yyyy", Locale("es", "ES")).format(Date()).uppercase()
+    }
 
     Box(
         modifier = Modifier
@@ -90,7 +104,7 @@ fun BudgetScreen(
                     .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Header Superior: "Presupuestos" y "AGOSTO 2026"
+                // Header Superior: "Presupuestos" y el mes en curso
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -106,7 +120,7 @@ fun BudgetScreen(
                         color = Ink950
                     )
                     Text(
-                        "AGOSTO  2026",
+                        monthTitle,
                         fontFamily = Manrope,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.5.sp,
@@ -115,59 +129,91 @@ fun BudgetScreen(
                     )
                 }
 
-                // Tarjeta 1: Total Presupuestado vs Gastado
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(White, RoundedCornerShape(12.dp))
-                        .border(1.dp, Ink200, RoundedCornerShape(12.dp))
-                        .padding(18.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                "Total presupuestado",
-                                fontFamily = Manrope,
-                                fontSize = 13.sp,
-                                color = Ink500
-                            )
-                            Text(
-                                String.format(Locale.US, "$%,.2f", summary.totalBudgeted),
-                                fontFamily = Manrope,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 24.sp,
-                                color = Ink950
-                            )
-                        }
+                financeState.error?.let { ErrorBanner(it) }
 
-                        Column(
-                            horizontalAlignment = Alignment.End,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                if (!financeState.loaded) {
+                    if (financeState.error == null) LoadingBox()
+                } else {
+                    // Tarjeta 1: Total Presupuestado vs Gastado
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(White, RoundedCornerShape(12.dp))
+                            .border(1.dp, Ink200, RoundedCornerShape(12.dp))
+                            .padding(18.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    "Total presupuestado",
+                                    fontFamily = Manrope,
+                                    fontSize = 13.sp,
+                                    color = Ink500
+                                )
+                                Text(
+                                    formatMoney(summary.totalBudgeted, currencySymbol),
+                                    fontFamily = Manrope,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 24.sp,
+                                    color = Ink950
+                                )
+                            }
+
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    "Gastado",
+                                    fontFamily = Manrope,
+                                    fontSize = 13.sp,
+                                    color = Ink500
+                                )
+                                Text(
+                                    formatMoney(summary.totalBudgetSpent, currencySymbol),
+                                    fontFamily = Manrope,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 24.sp,
+                                    color = Danger500
+                                )
+                            }
+                        }
+                    }
+
+                    // Tarjetas de Presupuesto por Categoría
+                    if (budgets.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(White, RoundedCornerShape(12.dp))
+                                .border(1.dp, Ink200, RoundedCornerShape(12.dp))
+                                .padding(20.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "Gastado",
+                                "Aún no tienes presupuestos. Crea uno con \"+ Nuevo\" para controlar tus gastos por categoría.",
                                 fontFamily = Manrope,
                                 fontSize = 13.sp,
+                                lineHeight = 19.sp,
                                 color = Ink500
-                            )
-                            Text(
-                                String.format(Locale.US, "$%,.2f", summary.monthlyExpenses),
-                                fontFamily = Manrope,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 24.sp,
-                                color = Danger500
                             )
                         }
                     }
-                }
 
-                // Tarjetas de Presupuesto por Categoría
-                budgets.forEach { budget ->
-                    BudgetCategoryCard(budget = budget)
+                    budgets.forEach { budget ->
+                        BudgetCategoryCard(
+                            budget = budget,
+                            currencySymbol = currencySymbol,
+                            onClick = {
+                                editingBudget = budget
+                                showNewBudgetDialog = true
+                            }
+                        )
+                    }
                 }
 
                 // Espacio inferior para no tapar con el botón flotante "+ Nuevo"
@@ -184,7 +230,10 @@ fun BudgetScreen(
                 .align(Alignment.BottomEnd)
                 .padding(end = 20.dp, bottom = 80.dp)
                 .background(Accent500, RoundedCornerShape(16.dp))
-                .clickable { showNewBudgetDialog = true }
+                .clickable {
+                    editingBudget = null
+                    showNewBudgetDialog = true
+                }
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -211,6 +260,8 @@ fun BudgetScreen(
         // Diálogo para Agregar / Editar Presupuesto
         if (showNewBudgetDialog) {
             AddBudgetDialog(
+                initial = editingBudget,
+                existingCategories = budgets.map { it.category },
                 onDismiss = { showNewBudgetDialog = false },
                 onSave = { newBudget ->
                     financeViewModel.saveBudget(newBudget) {
@@ -223,9 +274,9 @@ fun BudgetScreen(
 }
 
 @Composable
-private fun BudgetCategoryCard(budget: CategoryBudget) {
+private fun BudgetCategoryCard(budget: CategoryBudget, currencySymbol: String, onClick: () -> Unit) {
     val isExceeded = budget.isExceeded
-    val isWarning = budget.category == "Alimentación" && budget.percentage >= 90 && !isExceeded
+    val isWarning = budget.percentage >= 80 && !isExceeded
 
     val barColor = when {
         isExceeded -> Danger500
@@ -244,6 +295,7 @@ private fun BudgetCategoryCard(budget: CategoryBudget) {
             .fillMaxWidth()
             .background(White, RoundedCornerShape(12.dp))
             .border(cardBorder, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
             .padding(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -265,13 +317,8 @@ private fun BudgetCategoryCard(budget: CategoryBudget) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    val spentStr = if (budget.spent % 1.0 == 0.0) {
-                        String.format(Locale.US, "$%.0f", budget.spent)
-                    } else {
-                        String.format(Locale.US, "$%.2f", budget.spent)
-                    }
-
-                    val limitStr = String.format(Locale.US, "$%.0f", budget.limit)
+                    val spentStr = formatMoney(budget.spent, currencySymbol, if (budget.spent % 1.0 == 0.0) 0 else 2)
+                    val limitStr = formatMoney(budget.limit, currencySymbol, if (budget.limit % 1.0 == 0.0) 0 else 2)
 
                     val spentColor = when {
                         isExceeded -> Danger500
@@ -323,7 +370,7 @@ private fun BudgetCategoryCard(budget: CategoryBudget) {
             // Texto Inferior de Estado
             if (isExceeded) {
                 Text(
-                    String.format(Locale.US, "Excedido en $%.2f", budget.exceededAmount),
+                    "Excedido en ${formatMoney(budget.exceededAmount, currencySymbol)}",
                     fontFamily = Manrope,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.5.sp,
@@ -331,7 +378,7 @@ private fun BudgetCategoryCard(budget: CategoryBudget) {
                 )
             } else {
                 Text(
-                    String.format(Locale.US, "%d%% usado · quedan $%.2f", budget.percentage, budget.remaining),
+                    "${budget.percentage}% usado · quedan ${formatMoney(budget.remaining, currencySymbol)}",
                     fontFamily = Manrope,
                     fontSize = 12.5.sp,
                     color = Ink500
@@ -343,27 +390,52 @@ private fun BudgetCategoryCard(budget: CategoryBudget) {
 
 @Composable
 private fun AddBudgetDialog(
+    initial: CategoryBudget?,
+    existingCategories: List<String>,
     onDismiss: () -> Unit,
     onSave: (CategoryBudget) -> Unit
 ) {
-    var category by remember { mutableStateOf("") }
-    var limitText by remember { mutableStateOf("") }
+    // Para un presupuesto nuevo se sugiere la primera categoría que aún no tenga uno.
+    var category by remember {
+        mutableStateOf(initial?.category ?: ExpenseCategories.firstOrNull { it !in existingCategories } ?: ExpenseCategories.first())
+    }
+    var limitText by remember {
+        mutableStateOf(initial?.let { String.format(Locale.US, "%.2f", it.limit) } ?: "")
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nuevo Presupuesto", fontFamily = Manrope, fontWeight = FontWeight.Bold) },
+        title = {
+            Text(
+                if (initial == null) "Nuevo Presupuesto" else "Editar Presupuesto",
+                fontFamily = Manrope,
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (initial == null) {
+                    SelectField(
+                        label = "Categoría",
+                        options = ExpenseCategories,
+                        selected = category,
+                        onSelected = { category = it }
+                    )
+                } else {
+                    LabeledTextField(label = "Categoría", value = category, onValueChange = {}, enabled = false)
+                }
+                if (initial == null && category in existingCategories) {
+                    Text(
+                        "Ya tienes un presupuesto para $category; se actualizará su límite.",
+                        fontFamily = Manrope,
+                        fontSize = 11.5.sp,
+                        color = Ink500
+                    )
+                }
                 LabeledTextField(
-                    label = "Categoría",
-                    value = category,
-                    onValueChange = { category = it },
-                    placeholder = "Ej. Educación, Ropa, Gimnasio..."
-                )
-                LabeledTextField(
-                    label = "Límite mensual ($)",
+                    label = "Límite mensual",
                     value = limitText,
-                    onValueChange = { limitText = it },
+                    onValueChange = { limitText = filterAmountInput(it, limitText) },
                     placeholder = "150.00",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                 )
@@ -374,7 +446,7 @@ private fun AddBudgetDialog(
                 onClick = {
                     val limit = limitText.toDoubleOrNull() ?: 0.0
                     if (category.isNotBlank() && limit > 0.0) {
-                        onSave(CategoryBudget(category = category.trim(), limit = limit, spent = 0.0))
+                        onSave(CategoryBudget(id = initial?.id ?: "", category = category, limit = limit))
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Accent500)
@@ -394,6 +466,6 @@ private fun AddBudgetDialog(
 @Composable
 private fun BudgetPreview() {
     MiFinanzaTheme {
-        BudgetScreen(onTabSelected = {})
+        BudgetScreen(currencySymbol = "$", onTabSelected = {})
     }
 }

@@ -28,13 +28,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,8 +60,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.udb.mifinanza.data.ExpenseCategories
+import com.udb.mifinanza.data.IncomeCategories
 import com.udb.mifinanza.data.Movement
 import com.udb.mifinanza.data.MovementType
+import com.udb.mifinanza.data.filterAmountInput
+import com.udb.mifinanza.ui.components.ErrorBanner
+import com.udb.mifinanza.ui.components.LabeledTextField
 import com.udb.mifinanza.ui.components.StatusBarIcons
 import com.udb.mifinanza.ui.theme.Accent100
 import com.udb.mifinanza.ui.theme.Accent500
@@ -63,6 +75,7 @@ import com.udb.mifinanza.ui.theme.Danger500
 import com.udb.mifinanza.ui.theme.Ink100
 import com.udb.mifinanza.ui.theme.Ink200
 import com.udb.mifinanza.ui.theme.Ink300
+import com.udb.mifinanza.ui.theme.Ink400
 import com.udb.mifinanza.ui.theme.Ink50
 import com.udb.mifinanza.ui.theme.Ink500
 import com.udb.mifinanza.ui.theme.Ink600
@@ -72,19 +85,10 @@ import com.udb.mifinanza.ui.theme.Manrope
 import com.udb.mifinanza.ui.theme.Success500
 import com.udb.mifinanza.ui.theme.White
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-
-val AvailableCategories = listOf(
-    "Alimentación",
-    "Transporte",
-    "Ocio",
-    "Servicios",
-    "Salud",
-    "Educación",
-    "Hogar",
-    "Otros"
-)
+import java.util.TimeZone
 
 val PaymentMethods = listOf(
     "Efectivo",
@@ -93,29 +97,39 @@ val PaymentMethods = listOf(
     "Cuenta de Ahorros"
 )
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun NewMovementScreen(
     initialMovement: Movement? = null,
+    currencySymbol: String,
+    isSaving: Boolean = false,
+    errorMessage: String? = null,
     onCancel: () -> Unit,
     onSave: (Movement) -> Unit
 ) {
     StatusBarIcons(dark = true)
 
-    val todayStr = remember {
-        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.US)
-        sdf.format(Date())
-    }
-
     var movementType by remember { mutableStateOf(initialMovement?.type ?: MovementType.GASTO) }
-    var amountText by remember { mutableStateOf(initialMovement?.let { String.format(Locale.US, "%.2f", it.amount) } ?: "42.80") }
-    var selectedCategory by remember { mutableStateOf(initialMovement?.category ?: "Alimentación") }
-    var dateText by remember { mutableStateOf(initialMovement?.fullDateString?.ifEmpty { todayStr } ?: "12/08/2026") }
-    var paymentMethod by remember { mutableStateOf(initialMovement?.paymentMethod ?: "Efectivo") }
-    var description by remember { mutableStateOf(initialMovement?.description ?: "Compra semanal en Supermercado Santa María") }
-    var tags by remember { mutableStateOf(initialMovement?.tags?.takeIf { it.isNotEmpty() } ?: listOf("semanal", "hogar")) }
+    var amountText by remember { mutableStateOf(initialMovement?.let { String.format(Locale.US, "%.2f", it.amount) } ?: "") }
+    var title by remember { mutableStateOf(initialMovement?.title ?: "") }
+    var selectedCategory by remember { mutableStateOf(initialMovement?.category ?: ExpenseCategories.first()) }
+    var timestamp by remember { mutableStateOf(initialMovement?.timestamp ?: System.currentTimeMillis()) }
+    var paymentMethod by remember { mutableStateOf(initialMovement?.paymentMethod?.ifEmpty { null } ?: PaymentMethods.first()) }
+    var description by remember { mutableStateOf(initialMovement?.description ?: "") }
+    var tags by remember { mutableStateOf(initialMovement?.tags ?: emptyList()) }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
     var paymentDropdownExpanded by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTagDialog by remember { mutableStateOf(false) }
+    var formError by remember { mutableStateOf<String?>(null) }
+
+    val categories = if (movementType == MovementType.INGRESO) IncomeCategories else ExpenseCategories
+    // Al cambiar entre Ingreso y Gasto la categoría pasa a la primera de la lista del nuevo tipo.
+    fun selectType(type: MovementType) {
+        if (type == movementType) return
+        movementType = type
+        selectedCategory = (if (type == MovementType.INGRESO) IncomeCategories else ExpenseCategories).first()
+    }
 
     Column(
         modifier = Modifier
@@ -147,7 +161,7 @@ fun NewMovementScreen(
                 )
             }
             Text(
-                "Nuevo movimiento",
+                if (initialMovement == null) "Nuevo movimiento" else "Editar movimiento",
                 fontFamily = Manrope,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
@@ -163,6 +177,8 @@ fun NewMovementScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            (formError ?: errorMessage)?.let { ErrorBanner(it) }
+
             // Selector Ingreso / Gasto
             Box(
                 modifier = Modifier
@@ -186,7 +202,7 @@ fun NewMovementScreen(
                                     Modifier.border(BorderStroke(1.5.dp, Success500), RoundedCornerShape(6.dp))
                                 } else Modifier
                             )
-                            .clickable { movementType = MovementType.INGRESO },
+                            .clickable { selectType(MovementType.INGRESO) },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -212,7 +228,7 @@ fun NewMovementScreen(
                                     Modifier.border(BorderStroke(1.5.dp, Danger500), RoundedCornerShape(6.dp))
                                 } else Modifier
                             )
-                            .clickable { movementType = MovementType.GASTO },
+                            .clickable { selectType(MovementType.GASTO) },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -245,7 +261,7 @@ fun NewMovementScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "$ ",
+                        "$currencySymbol ",
                         fontFamily = Manrope,
                         fontWeight = FontWeight.Bold,
                         fontSize = 24.sp,
@@ -253,7 +269,7 @@ fun NewMovementScreen(
                     )
                     BasicTextField(
                         value = amountText,
-                        onValueChange = { amountText = it },
+                        onValueChange = { amountText = filterAmountInput(it, amountText) },
                         singleLine = true,
                         textStyle = TextStyle(
                             fontFamily = Manrope,
@@ -267,6 +283,14 @@ fun NewMovementScreen(
                     )
                 }
             }
+
+            // Campo Concepto
+            LabeledTextField(
+                label = "Concepto",
+                value = title,
+                onValueChange = { title = it },
+                placeholder = if (movementType == MovementType.INGRESO) "Ej. Pago de beca, Venta..." else "Ej. Supermercado, Pago de luz..."
+            )
 
             // Campo Categoría con Dropdown
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -302,7 +326,7 @@ fun NewMovementScreen(
                         expanded = categoryDropdownExpanded,
                         onDismissRequest = { categoryDropdownExpanded = false }
                     ) {
-                        AvailableCategories.forEach { cat ->
+                        categories.forEach { cat ->
                             DropdownMenuItem(
                                 text = { Text(cat, fontFamily = Manrope, fontSize = 14.sp, color = Ink950) },
                                 onClick = {
@@ -319,7 +343,7 @@ fun NewMovementScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("Alimentación", "Transporte", "Ocio", "Servicios", "Salud").forEach { cat ->
+                    categories.take(5).forEach { cat ->
                         val isSelected = (cat == selectedCategory)
                         Box(
                             modifier = Modifier
@@ -368,15 +392,16 @@ fun NewMovementScreen(
                             .height(48.dp)
                             .background(White, RoundedCornerShape(8.dp))
                             .border(1.dp, Ink300, RoundedCornerShape(8.dp))
+                            .clickable { showDatePicker = true }
                             .padding(horizontal = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        BasicTextField(
-                            value = dateText,
-                            onValueChange = { dateText = it },
-                            singleLine = true,
-                            textStyle = TextStyle(fontFamily = Manrope, fontSize = 13.5.sp, color = Ink950),
+                        Text(
+                            SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date(timestamp)),
+                            fontFamily = Manrope,
+                            fontSize = 13.5.sp,
+                            color = Ink950,
                             modifier = Modifier.weight(1f)
                         )
                         Icon(
@@ -456,6 +481,9 @@ fun NewMovementScreen(
                         .border(1.dp, Ink300, RoundedCornerShape(8.dp))
                         .padding(12.dp)
                 ) {
+                    if (description.isEmpty()) {
+                        Text("Opcional", fontFamily = Manrope, fontSize = 13.5.sp, color = Ink400)
+                    }
                     BasicTextField(
                         value = description,
                         onValueChange = { description = it },
@@ -480,9 +508,9 @@ fun NewMovementScreen(
                     fontSize = 12.sp,
                     color = Ink600
                 )
-                Row(
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     tags.forEach { tag ->
                         Row(
@@ -525,11 +553,7 @@ fun NewMovementScreen(
                                     )
                                 )
                             }
-                            .clickable {
-                                // Agregar etiqueta genérica si se desea
-                                val nextTag = "extra${tags.size + 1}"
-                                tags = tags + nextTag
-                            }
+                            .clickable { showTagDialog = true }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -575,32 +599,28 @@ fun NewMovementScreen(
             Button(
                 onClick = {
                     val amt = amountText.toDoubleOrNull() ?: 0.0
-                    if (amt > 0.0) {
-                        // Extraer título sugerido si está vacío
-                        val resolvedTitle = if (description.contains("Supermercado", ignoreCase = true)) {
-                            "Supermercado Santa María"
-                        } else if (description.isNotBlank()) {
-                            description.take(30)
-                        } else {
-                            "$selectedCategory ${if (movementType == MovementType.INGRESO) "Ingreso" else "Gasto"}"
-                        }
-
-                        val movement = Movement(
-                            id = initialMovement?.id ?: "",
-                            title = resolvedTitle,
-                            category = selectedCategory,
-                            amount = amt,
-                            type = movementType,
-                            timestamp = initialMovement?.timestamp ?: System.currentTimeMillis(),
-                            dateString = dateText.take(6),
-                            fullDateString = dateText,
-                            paymentMethod = paymentMethod,
-                            description = description,
-                            tags = tags
+                    formError = when {
+                        amt <= 0.0 -> "Ingresa un monto mayor a cero."
+                        title.isBlank() -> "Ingresa el concepto del movimiento."
+                        else -> null
+                    }
+                    if (formError == null) {
+                        onSave(
+                            Movement(
+                                id = initialMovement?.id ?: "",
+                                title = title.trim(),
+                                category = selectedCategory,
+                                amount = amt,
+                                type = movementType,
+                                timestamp = timestamp,
+                                paymentMethod = paymentMethod,
+                                description = description.trim(),
+                                tags = tags
+                            )
                         )
-                        onSave(movement)
                     }
                 },
+                enabled = !isSaving,
                 modifier = Modifier
                     .weight(1.8f)
                     .height(48.dp),
@@ -608,7 +628,7 @@ fun NewMovementScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Accent500)
             ) {
                 Text(
-                    "Guardar",
+                    if (isSaving) "Guardando..." else "Guardar",
                     fontFamily = Manrope,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
@@ -617,4 +637,76 @@ fun NewMovementScreen(
             }
         }
     }
+
+    if (showDatePicker) {
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = localToUtcDate(timestamp),
+            selectableDates = object : SelectableDates {
+                // No se registran movimientos a futuro.
+                override fun isSelectableDate(utcTimeMillis: Long) =
+                    utcTimeMillis <= localToUtcDate(System.currentTimeMillis())
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { timestamp = utcDateToLocal(it, keepTimeOf = timestamp) }
+                    showDatePicker = false
+                }) { Text("Aceptar", color = Accent500) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancelar", color = Ink600) }
+            }
+        ) {
+            DatePicker(state = pickerState)
+        }
+    }
+
+    if (showTagDialog) {
+        var newTag by remember { mutableStateOf("") }
+        val addTag = {
+            val clean = newTag.trim().removePrefix("#").replace(" ", "").lowercase()
+            if (clean.isNotEmpty() && clean !in tags) tags = tags + clean
+            showTagDialog = false
+        }
+        AlertDialog(
+            onDismissRequest = { showTagDialog = false },
+            title = { Text("Nueva etiqueta", fontFamily = Manrope, fontWeight = FontWeight.Bold) },
+            text = {
+                LabeledTextField(
+                    label = "Etiqueta",
+                    value = newTag,
+                    onValueChange = { newTag = it },
+                    placeholder = "Ej. hogar, trabajo..."
+                )
+            },
+            confirmButton = {
+                Button(onClick = addTag, colors = ButtonDefaults.buttonColors(containerColor = Accent500)) {
+                    Text("Agregar", color = White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTagDialog = false }) { Text("Cancelar", color = Ink600) }
+            }
+        )
+    }
+}
+
+/** El DatePicker trabaja con medianoche UTC; esto convierte una fecha local a ese formato. */
+private fun localToUtcDate(localMillis: Long): Long {
+    val local = Calendar.getInstance().apply { timeInMillis = localMillis }
+    return Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        clear()
+        set(local.get(Calendar.YEAR), local.get(Calendar.MONTH), local.get(Calendar.DAY_OF_MONTH))
+    }.timeInMillis
+}
+
+/** Convierte la fecha elegida (medianoche UTC) a la fecha local, conservando la hora original. */
+private fun utcDateToLocal(utcMillis: Long, keepTimeOf: Long): Long {
+    val utc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = utcMillis }
+    return Calendar.getInstance().apply {
+        timeInMillis = keepTimeOf
+        set(utc.get(Calendar.YEAR), utc.get(Calendar.MONTH), utc.get(Calendar.DAY_OF_MONTH))
+    }.timeInMillis
 }

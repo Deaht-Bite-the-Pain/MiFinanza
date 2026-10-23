@@ -29,6 +29,10 @@ data class UserProfile(
             }
         }
 
+    /** Símbolo de la moneda local elegida al registrarse. */
+    val currencySymbol: String
+        get() = CURRENCY_SYMBOLS[currency] ?: "$"
+
     fun toMap(): Map<String, Any> = mapOf(
         "name" to name,
         "email" to email,
@@ -41,6 +45,11 @@ data class UserProfile(
     )
 
     companion object {
+        private val CURRENCY_SYMBOLS = mapOf(
+            "USD" to "$", "EUR" to "€", "MXN" to "$", "COP" to "$", "ARS" to "$", "CLP" to "$",
+            "PEN" to "S/", "GTQ" to "Q", "HNL" to "L", "NIO" to "C$", "CRC" to "₡", "DOP" to "RD$"
+        )
+
         fun fromMap(data: Map<String, Any?>): UserProfile = UserProfile(
             name = data["name"] as? String ?: "",
             email = data["email"] as? String ?: "",

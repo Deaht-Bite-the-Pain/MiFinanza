@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.udb.mifinanza.data.CategoryBudget
 import com.udb.mifinanza.data.Movement
 import com.udb.mifinanza.data.MovementType
 import com.udb.mifinanza.ui.components.BottomNavBar
@@ -60,9 +63,12 @@ import com.udb.mifinanza.ui.theme.Success100
 import com.udb.mifinanza.ui.theme.Success500
 import com.udb.mifinanza.ui.theme.White
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MovementDetailScreen(
     movement: Movement,
+    currencySymbol: String,
+    budget: CategoryBudget?,
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -72,13 +78,12 @@ fun MovementDetailScreen(
 
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
-    val displayDate = movement.displayFullDate.ifEmpty { "12/08/2026" }
-    val displayCategory = movement.category.ifEmpty { "Alimentación" }
-    val displayPayment = movement.paymentMethod.ifEmpty { "Efectivo" }
-    val displayDescription = movement.description.ifEmpty {
-        "Compra semanal en Supermercado Santa María. Incluye frutas, lácteos y limpieza."
+    val isExpense = movement.type == MovementType.GASTO
+    // Un gasto solo afecta un presupuesto si el usuario creó uno para esa categoría.
+    val budgetText = when {
+        budget == null -> "Sin presupuesto"
+        else -> "${budget.category} · ${budget.percentage}%"
     }
-    val displayTags = if (movement.tags.isNotEmpty()) movement.tags else listOf("semanal", "hogar")
 
     Column(
         modifier = Modifier
@@ -154,7 +159,7 @@ fun MovementDetailScreen(
 
                     // Monto
                     Text(
-                        movement.displayAmount,
+                        movement.displayAmount(currencySymbol),
                         fontFamily = Manrope,
                         fontWeight = FontWeight.Bold,
                         fontSize = 32.sp,
@@ -163,7 +168,7 @@ fun MovementDetailScreen(
 
                     // Nombre / Título
                     Text(
-                        movement.title.ifEmpty { "Supermercado Santa María" },
+                        movement.title,
                         fontFamily = Manrope,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.5.sp,
@@ -180,18 +185,22 @@ fun MovementDetailScreen(
                     .border(1.dp, Ink200, RoundedCornerShape(12.dp))
             ) {
                 Column {
-                    DetailRow(label = "Categoría", value = displayCategory, isHighlight = false)
+                    DetailRow(label = "Categoría", value = movement.category, isHighlight = false)
                     Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Ink100))
-                    DetailRow(label = "Fecha", value = displayDate, isHighlight = false)
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Ink100))
-                    DetailRow(label = "Método de pago", value = displayPayment, isHighlight = false)
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Ink100))
-                    DetailRow(label = "Presupuesto afectado", value = displayCategory, isHighlight = true)
+                    DetailRow(label = "Fecha", value = movement.displayFullDate, isHighlight = false)
+                    if (movement.paymentMethod.isNotEmpty()) {
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Ink100))
+                        DetailRow(label = "Método de pago", value = movement.paymentMethod, isHighlight = false)
+                    }
+                    if (isExpense) {
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Ink100))
+                        DetailRow(label = "Presupuesto afectado", value = budgetText, isHighlight = budget != null)
+                    }
                 }
             }
 
-            // Tarjeta 3: DESCRIPCIÓN y Etiquetas
-            Box(
+            // Tarjeta 3: DESCRIPCIÓN y Etiquetas (solo si el usuario agregó alguna)
+            if (movement.description.isNotEmpty() || movement.tags.isNotEmpty()) Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(White, RoundedCornerShape(12.dp))
@@ -207,18 +216,21 @@ fun MovementDetailScreen(
                         letterSpacing = 0.8.sp,
                         color = Ink500
                     )
-                    Text(
-                        displayDescription,
-                        fontFamily = Manrope,
-                        fontSize = 13.5.sp,
-                        lineHeight = 20.sp,
-                        color = Ink950
-                    )
-                    Row(
+                    if (movement.description.isNotEmpty()) {
+                        Text(
+                            movement.description,
+                            fontFamily = Manrope,
+                            fontSize = 13.5.sp,
+                            lineHeight = 20.sp,
+                            color = Ink950
+                        )
+                    }
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(top = 4.dp)
                     ) {
-                        displayTags.forEach { tag ->
+                        movement.tags.forEach { tag ->
                             Box(
                                 modifier = Modifier
                                     .background(Accent100, RoundedCornerShape(6.dp))

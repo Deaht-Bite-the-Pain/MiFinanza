@@ -1,6 +1,5 @@
 package com.udb.mifinanza.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,60 +17,51 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.udb.mifinanza.data.BudgetAlert
 import com.udb.mifinanza.data.FinanceSummary
+import com.udb.mifinanza.data.formatMoney
 import com.udb.mifinanza.data.Movement
 import com.udb.mifinanza.data.MovementType
 import com.udb.mifinanza.data.UserProfile
 import com.udb.mifinanza.ui.components.BottomNavBar
-import com.udb.mifinanza.ui.components.LabeledTextField
+import com.udb.mifinanza.ui.components.ErrorBanner
+import com.udb.mifinanza.ui.components.LoadingBox
 import com.udb.mifinanza.ui.components.NavTab
 import com.udb.mifinanza.ui.components.StatusBarIcons
 import com.udb.mifinanza.ui.finance.FinanceViewModel
-import com.udb.mifinanza.ui.theme.Accent100
 import com.udb.mifinanza.ui.theme.Accent500
 import com.udb.mifinanza.ui.theme.Danger500
 import com.udb.mifinanza.ui.theme.Ink200
 import com.udb.mifinanza.ui.theme.Ink400
 import com.udb.mifinanza.ui.theme.Ink50
 import com.udb.mifinanza.ui.theme.Ink500
-import com.udb.mifinanza.ui.theme.Ink600
 import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
 import com.udb.mifinanza.ui.theme.MiFinanzaTheme
 import com.udb.mifinanza.ui.theme.Success500
 import com.udb.mifinanza.ui.theme.White
-import java.util.Locale
+import kotlin.math.abs
 
 @Composable
 fun HomeScreen(
@@ -86,7 +76,7 @@ fun HomeScreen(
 
     val financeState by financeViewModel.state.collectAsState()
     val summary = financeState.summary
-    val displayName = profile.firstName.ifEmpty { "María Fernanda" }
+    val symbol = profile.currencySymbol
 
     Box(
         modifier = Modifier
@@ -106,31 +96,39 @@ fun HomeScreen(
             ) {
                 // Header: Saludo y botones superiores
                 HomeTopBar(
-                    name = displayName,
+                    // Mientras se carga el perfil no se muestra ningún nombre.
+                    name = if (profile.name.isBlank()) "" else profile.firstName,
                     onOpenProfile = onOpenProfile
                 )
 
-                // Tarjeta Principal de Saldo
-                BalanceCard(summary = summary)
+                financeState.error?.let { ErrorBanner(it) }
 
-                // Alerta de Presupuesto (Alimentación)
-                BudgetAlertBanner(summary = summary)
+                if (!financeState.loaded) {
+                    if (financeState.error == null) LoadingBox()
+                } else {
+                    // Tarjeta Principal de Saldo
+                    BalanceCard(summary = summary, symbol = symbol)
 
-                // Botones rápidos: Agregar movimiento y Ver reportes
-                QuickActionsRow(
-                    onAddMovement = onOpenNewMovement,
-                    onViewReports = { /* TODO reportes */ }
-                )
+                    // Alerta del presupuesto más comprometido del mes (si hay alguno al 80 % o más)
+                    summary.budgetAlert?.let { BudgetAlertBanner(alert = it, symbol = symbol) }
 
-                // Gráfico de los últimos 6 meses
-                MonthlyExpensesChart(summary = summary)
+                    // Botones rápidos: Agregar movimiento y Ver reportes
+                    QuickActionsRow(
+                        onAddMovement = onOpenNewMovement,
+                        onViewReports = { /* TODO reportes */ }
+                    )
 
-                // Sección de Movimientos recientes
-                RecentMovementsSection(
-                    movements = summary.recentMovements,
-                    onMovementClick = onOpenMovementDetail,
-                    onViewAll = { onTabSelected(NavTab.Movimientos) }
-                )
+                    // Gráfico de los últimos 6 meses
+                    MonthlyExpensesChart(summary = summary)
+
+                    // Sección de Movimientos recientes
+                    RecentMovementsSection(
+                        movements = summary.recentMovements,
+                        symbol = symbol,
+                        onMovementClick = onOpenMovementDetail,
+                        onViewAll = { onTabSelected(NavTab.Movimientos) }
+                    )
+                }
 
                 // Espacio inferior para no tapar con el FAB
                 Spacer(modifier = Modifier.height(60.dp))
@@ -211,7 +209,7 @@ private fun HomeTopBar(name: String, onOpenProfile: () -> Unit) {
 }
 
 @Composable
-private fun BalanceCard(summary: FinanceSummary) {
+private fun BalanceCard(summary: FinanceSummary, symbol: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -229,7 +227,7 @@ private fun BalanceCard(summary: FinanceSummary) {
                     color = Color(0xFF7E9BB3)
                 )
                 Text(
-                    String.format(Locale.US, "$%,.2f", summary.availableBalance),
+                    (if (summary.availableBalance < 0) "-" else "") + formatMoney(abs(summary.availableBalance), symbol),
                     fontFamily = Manrope,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 32.sp,
@@ -248,7 +246,7 @@ private fun BalanceCard(summary: FinanceSummary) {
                         color = Color(0xFF7E9BB3)
                     )
                     Text(
-                        String.format(Locale.US, "+$%,.2f", summary.monthlyIncome),
+                        "+" + formatMoney(summary.monthlyIncome, symbol),
                         fontFamily = Manrope,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
@@ -263,7 +261,7 @@ private fun BalanceCard(summary: FinanceSummary) {
                         color = Color(0xFF7E9BB3)
                     )
                     Text(
-                        String.format(Locale.US, "-$%,.2f", summary.monthlyExpenses),
+                        "-" + formatMoney(summary.monthlyExpenses, symbol),
                         fontFamily = Manrope,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
@@ -276,8 +274,7 @@ private fun BalanceCard(summary: FinanceSummary) {
 }
 
 @Composable
-private fun BudgetAlertBanner(summary: FinanceSummary) {
-    val alert = summary.budgetAlert
+private fun BudgetAlertBanner(alert: BudgetAlert, symbol: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -298,20 +295,20 @@ private fun BudgetAlertBanner(summary: FinanceSummary) {
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    "${alert.category} al ${alert.percentage}% del límite",
+                    if (alert.isExceeded) "${alert.category} superó el límite (${alert.percentage}%)"
+                    else "${alert.category} al ${alert.percentage}% del límite",
                     fontFamily = Manrope,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.5.sp,
                     color = Color(0xFF804F0D)
                 )
                 Text(
-                    String.format(
-                        Locale.US,
-                        "$%.0f de $%.0f · quedan %d dias del mes",
-                        alert.spent,
-                        alert.limit,
-                        alert.daysRemaining
-                    ),
+                    "${formatMoney(alert.spent, symbol, 0)} de ${formatMoney(alert.limit, symbol, 0)} · " +
+                        when (alert.daysRemaining) {
+                            0 -> "último día del mes"
+                            1 -> "queda 1 día del mes"
+                            else -> "quedan ${alert.daysRemaining} días del mes"
+                        },
                     fontFamily = Manrope,
                     fontSize = 12.sp,
                     color = Color(0xFF9E6515)
@@ -379,7 +376,7 @@ private fun QuickActionsRow(onAddMovement: () -> Unit, onViewReports: () -> Unit
 @Composable
 private fun MonthlyExpensesChart(summary: FinanceSummary) {
     val bars = summary.monthlyBars
-    val maxAmt = (bars.maxOfOrNull { it.amount } ?: 1.0).coerceAtLeast(100.0)
+    val maxAmt = (bars.maxOfOrNull { it.amount } ?: 0.0).coerceAtLeast(1.0)
 
     Box(
         modifier = Modifier
@@ -420,7 +417,8 @@ private fun MonthlyExpensesChart(summary: FinanceSummary) {
                 verticalAlignment = Alignment.Bottom
             ) {
                 bars.forEach { bar ->
-                    val fraction = (bar.amount / maxAmt).toFloat().coerceIn(0.15f, 1f)
+                    // Los meses sin gastos se ven como una línea mínima, no como una barra.
+                    val fraction = (bar.amount / maxAmt).toFloat().coerceIn(0.03f, 1f)
                     val barHeight = (100 * fraction).dp
 
                     Column(
@@ -455,6 +453,7 @@ private fun MonthlyExpensesChart(summary: FinanceSummary) {
 @Composable
 private fun RecentMovementsSection(
     movements: List<Movement>,
+    symbol: String,
     onMovementClick: (Movement) -> Unit,
     onViewAll: () -> Unit
 ) {
@@ -524,7 +523,7 @@ private fun RecentMovementsSection(
                             )
                         }
                         Text(
-                            mov.displayAmount,
+                            mov.displayAmount(symbol),
                             fontFamily = Manrope,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.5.sp,
@@ -571,86 +570,6 @@ private fun ChartIcon(tint: Color) {
         }.build()
     }
     Icon(icon, contentDescription = "Reportes", tint = tint, modifier = Modifier.size(20.dp))
-}
-
-@Composable
-private fun AddMovementDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (title: String, category: String, amount: Double, isIncome: Boolean) -> Unit
-) {
-    var title by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Alimentación") }
-    var amountText by remember { mutableStateOf("") }
-    var isIncome by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Registrar Movimiento", fontFamily = Manrope, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { isIncome = false },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (!isIncome) Accent100 else White
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Gasto", color = if (!isIncome) Accent500 else Ink600)
-                    }
-                    OutlinedButton(
-                        onClick = { isIncome = true },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (isIncome) Accent100 else White
-                        ),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Ingreso", color = if (isIncome) Accent500 else Ink600)
-                    }
-                }
-                LabeledTextField(
-                    label = "Concepto / Título",
-                    value = title,
-                    onValueChange = { title = it },
-                    placeholder = "Ej. Farmacia, Cafetería..."
-                )
-                LabeledTextField(
-                    label = "Categoría",
-                    value = category,
-                    onValueChange = { category = it },
-                    placeholder = "Alimentación, Transporte, etc."
-                )
-                LabeledTextField(
-                    label = "Monto ($)",
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    placeholder = "0.00",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val amt = amountText.toDoubleOrNull() ?: 0.0
-                    if (title.isNotEmpty() && amt > 0.0) {
-                        onConfirm(title, category, amt, isIncome)
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Accent500)
-            ) {
-                Text("Guardar", color = White)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = Ink600)
-            }
-        }
-    )
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 800)

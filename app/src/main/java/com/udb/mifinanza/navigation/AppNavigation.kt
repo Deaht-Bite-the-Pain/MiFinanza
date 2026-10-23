@@ -14,7 +14,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.udb.mifinanza.data.Movement
-import com.udb.mifinanza.data.MovementType
 import com.udb.mifinanza.ui.components.NavTab
 import com.udb.mifinanza.ui.finance.FinanceViewModel
 import com.udb.mifinanza.ui.screens.BudgetScreen
@@ -45,6 +44,8 @@ fun AppNavigation() {
     val authViewModel: AuthViewModel = viewModel()
     val financeViewModel: FinanceViewModel = viewModel()
     val auth by authViewModel.state.collectAsState()
+    val finance by financeViewModel.state.collectAsState()
+    val currencySymbol = (auth.profile ?: UserProfile()).currencySymbol
     val startDestination = remember { if (authViewModel.isSignedIn) Routes.HOME else Routes.WELCOME }
 
     var selectedMovement by remember { mutableStateOf<Movement?>(null) }
@@ -126,37 +127,36 @@ fun AppNavigation() {
         composable(Routes.NEW_MOVEMENT) {
             NewMovementScreen(
                 initialMovement = selectedMovement,
+                currencySymbol = currencySymbol,
+                isSaving = finance.isLoading,
+                errorMessage = finance.error,
                 onCancel = { navController.popBackStack() },
                 onSave = { movement ->
                     financeViewModel.saveMovement(movement) {
-                        navController.popBackStack()
+                        // Al editar se vuelve a Inicio para no mostrar el detalle con datos viejos.
+                        if (movement.id.isEmpty()) navController.popBackStack()
+                        else navController.popBackStack(Routes.HOME, inclusive = false)
                     }
                 }
             )
         }
         composable(Routes.MOVEMENT_DETAIL) {
-            val mov = selectedMovement ?: Movement(
-                title = "Supermercado Santa María",
-                category = "Alimentación",
-                amount = 42.80,
-                type = MovementType.GASTO,
-                fullDateString = "12/08/2026",
-                paymentMethod = "Efectivo",
-                description = "Compra semanal en Supermercado Santa María. Incluye frutas, lácteos y limpieza.",
-                tags = listOf("semanal", "hogar")
-            )
+            // Sin movimiento seleccionado (p. ej. tras recrear la actividad) no hay nada que mostrar.
+            val mov = selectedMovement
+            if (mov == null) {
+                LaunchedEffect(Unit) { navController.popBackStack(Routes.HOME, inclusive = false) }
+                return@composable
+            }
             MovementDetailScreen(
                 movement = mov,
+                currencySymbol = currencySymbol,
+                budget = finance.summary.budgets.find { it.category.equals(mov.category, ignoreCase = true) },
                 onBack = { navController.popBackStack() },
                 onEdit = {
                     navController.navigate(Routes.NEW_MOVEMENT)
                 },
                 onDelete = {
-                    if (mov.id.isNotEmpty()) {
-                        financeViewModel.deleteMovement(mov.id) {
-                            navController.popBackStack()
-                        }
-                    } else {
+                    financeViewModel.deleteMovement(mov.id) {
                         navController.popBackStack()
                     }
                 },
@@ -177,6 +177,7 @@ fun AppNavigation() {
                 financeViewModel.loadSummary()
             }
             BudgetScreen(
+                currencySymbol = currencySymbol,
                 onTabSelected = { tab ->
                     when (tab) {
                         NavTab.Inicio -> navController.navigate(Routes.HOME) {
@@ -198,6 +199,7 @@ fun AppNavigation() {
                 onOpenNews = { /* TODO: noticias académicas */ },
                 onLogout = {
                     authViewModel.signOut()
+                    financeViewModel.clear()
                     navController.navigate(Routes.WELCOME) { popUpTo(0) }
                 },
                 onTabSelected = { tab ->

@@ -120,6 +120,14 @@ fun ErrorBanner(message: String, modifier: Modifier = Modifier) {
     }
 }
 
+/** Indicador de carga mientras llegan los datos del usuario desde Firestore. */
+@Composable
+fun LoadingBox(modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(modifier = Modifier.size(32.dp), color = Accent500, strokeWidth = 3.dp)
+    }
+}
+
 @Composable
 fun OutlinedAppButton(
     text: String,

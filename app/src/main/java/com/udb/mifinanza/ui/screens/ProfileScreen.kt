@@ -59,18 +59,15 @@ fun ProfileScreen(
 ) {
     StatusBarIcons(dark = true)
 
-    val displayName = profile.name.ifEmpty { "María Fernanda Ruiz" }
-    val displayEmail = profile.email.ifEmpty { "m.ruiz@correo.com" }
-    val displayInitials = if (profile.initials != "?") profile.initials else "MR"
-    val displayPhone = profile.phone.ifEmpty { "+593 98 214 7730" }
-    val displayBirthDate = profile.birthDate.ifEmpty { "14/03/2002" }
-    val displayCurrency = when {
-        profile.currency.isEmpty() || profile.currency == "USD" -> "USD ($)"
-        else -> profile.currency
-    }
-    val displayInstitution = profile.institution.ifEmpty { "Universidad Central" }
-    val displayCareer = profile.career.ifEmpty { "Ing. en Software" }
-    val displaySemester = profile.semester.ifEmpty { "6°" }
+    val displayName = profile.name
+    val displayEmail = profile.email
+    val displayInitials = profile.initials
+    val displayPhone = profile.phone.ifEmpty { NOT_SET }
+    val displayBirthDate = profile.birthDate.ifEmpty { NOT_SET }
+    val displayCurrency = "${profile.currency} (${profile.currencySymbol})"
+    val displayInstitution = profile.institution.ifEmpty { NOT_SET }
+    val displayCareer = profile.career.ifEmpty { NOT_SET }
+    val displaySemester = profile.semester.ifEmpty { NOT_SET }
 
     Column(
         modifier = Modifier
@@ -188,6 +185,9 @@ fun ProfileScreen(
     }
 }
 
+/** Texto para los datos que el usuario todavía no ha registrado. */
+private const val NOT_SET = "No registrado"
+
 @Composable
 private fun Card(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(
@@ -226,9 +226,9 @@ private fun InfoCard(title: String, rows: List<Pair<String, String>>) {
                     Text(
                         value,
                         fontFamily = Manrope,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = if (value == NOT_SET) FontWeight.Normal else FontWeight.SemiBold,
                         fontSize = 13.sp,
-                        color = Ink950
+                        color = if (value == NOT_SET) Ink500 else Ink950
                     )
                 }
             }

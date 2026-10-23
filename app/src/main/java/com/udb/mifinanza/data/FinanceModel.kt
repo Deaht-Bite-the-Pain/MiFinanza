@@ -10,39 +10,61 @@ enum class MovementType {
     GASTO
 }
 
+/** Categorías con las que se registran los gastos (y sobre las que se definen presupuestos). */
+val ExpenseCategories = listOf(
+    "Alimentación",
+    "Transporte",
+    "Ocio",
+    "Servicios",
+    "Salud",
+    "Educación",
+    "Hogar",
+    "Otros"
+)
+
+/** Categorías con las que se registran los ingresos. */
+val IncomeCategories = listOf(
+    "Salario",
+    "Beca",
+    "Ventas",
+    "Regalo",
+    "Otros ingresos"
+)
+
+/** Formatea un monto con el símbolo de la moneda del usuario: "$1,284.50". */
+fun formatMoney(amount: Double, symbol: String, decimals: Int = 2): String =
+    symbol + String.format(Locale.US, "%,.${decimals}f", amount)
+
+private val AmountInput = Regex("""\d{0,9}(\.\d{0,2})?""")
+
+/** Filtra lo que se escribe en un campo de monto: solo dígitos, un punto y hasta 2 decimales. */
+fun filterAmountInput(input: String, current: String): String {
+    val normalized = input.replace(',', '.')
+    return if (AmountInput.matches(normalized)) normalized else current
+}
+
 /** Representa un movimiento registrado en Firestore en `users/{uid}/movements/{id}` */
 data class Movement(
     val id: String = "",
     val title: String = "",
-    val category: String = "Alimentación",
+    val category: String = "",
     val amount: Double = 0.0,
     val type: MovementType = MovementType.GASTO,
     val timestamp: Long = System.currentTimeMillis(),
-    val dateString: String = "",
-    val fullDateString: String = "",
     val paymentMethod: String = "Efectivo",
     val description: String = "",
     val tags: List<String> = emptyList()
 ) {
+    /** Fecha corta para listas: "12 ago". */
     val formattedDate: String
-        get() {
-            if (dateString.isNotEmpty()) return dateString
-            val sdf = SimpleDateFormat("d MMM", Locale("es", "ES"))
-            return sdf.format(Date(timestamp))
-        }
+        get() = SimpleDateFormat("d MMM", Locale("es", "ES")).format(Date(timestamp)).lowercase()
 
+    /** Fecha completa: "12/08/2026". */
     val displayFullDate: String
-        get() {
-            if (fullDateString.isNotEmpty()) return fullDateString
-            val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.US)
-            return sdf.format(Date(timestamp))
-        }
+        get() = SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date(timestamp))
 
-    val displayAmount: String
-        get() {
-            val formatted = String.format(Locale.US, "%.2f", amount)
-            return if (type == MovementType.INGRESO) "+$$formatted" else "-$$formatted"
-        }
+    fun displayAmount(symbol: String): String =
+        (if (type == MovementType.INGRESO) "+" else "-") + formatMoney(amount, symbol)
 
     fun toMap(): Map<String, Any> = mapOf(
         "title" to title,
@@ -50,8 +72,6 @@ data class Movement(
         "amount" to amount,
         "type" to type.name,
         "timestamp" to timestamp,
-        "dateString" to dateString,
-        "fullDateString" to fullDateString,
         "paymentMethod" to paymentMethod,
         "description" to description,
         "tags" to tags
@@ -61,22 +81,16 @@ data class Movement(
         fun fromMap(id: String, map: Map<String, Any?>): Movement {
             val typeStr = map["type"] as? String ?: MovementType.GASTO.name
             val type = runCatching { MovementType.valueOf(typeStr) }.getOrDefault(MovementType.GASTO)
-            val amt = (map["amount"] as? Number)?.toDouble() ?: 0.0
-            val ts = (map["timestamp"] as? Number)?.toLong() ?: System.currentTimeMillis()
-            @Suppress("UNCHECKED_CAST")
-            val tagsList = (map["tags"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
             return Movement(
                 id = id,
                 title = map["title"] as? String ?: "",
-                category = map["category"] as? String ?: "Alimentación",
-                amount = amt,
+                category = map["category"] as? String ?: "",
+                amount = (map["amount"] as? Number)?.toDouble() ?: 0.0,
                 type = type,
-                timestamp = ts,
-                dateString = map["dateString"] as? String ?: "",
-                fullDateString = map["fullDateString"] as? String ?: "",
-                paymentMethod = map["paymentMethod"] as? String ?: "Efectivo",
+                timestamp = (map["timestamp"] as? Number)?.toLong() ?: 0L,
+                paymentMethod = map["paymentMethod"] as? String ?: "",
                 description = map["description"] as? String ?: "",
-                tags = tagsList
+                tags = (map["tags"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
             )
         }
     }
@@ -89,18 +103,22 @@ data class MonthlyExpenseBar(
     val isCurrentMonth: Boolean = false
 )
 
-/** Alerta de presupuesto para categorías críticas */
+/** Alerta del presupuesto más comprometido del mes (80 % o más de su límite). */
 data class BudgetAlert(
-    val category: String = "Alimentación",
-    val spent: Double = 276.0,
-    val limit: Double = 300.0,
-    val daysRemaining: Int = 6
+    val category: String,
+    val spent: Double,
+    val limit: Double,
+    val daysRemaining: Int
 ) {
     val percentage: Int
         get() = if (limit > 0) ((spent / limit) * 100).toInt() else 0
+    val isExceeded: Boolean get() = spent > limit
 }
 
-/** Representa el presupuesto por categoría */
+/**
+ * Presupuesto mensual de una categoría, guardado en `users/{uid}/budgets/{id}`.
+ * Solo se guarda el límite; [spent] se calcula con los gastos del mes en curso.
+ */
 data class CategoryBudget(
     val id: String = "",
     val category: String = "",
@@ -114,7 +132,6 @@ data class CategoryBudget(
 
     fun toMap(): Map<String, Any> = mapOf(
         "category" to category,
-        "spent" to spent,
         "limit" to limit
     )
 
@@ -122,19 +139,19 @@ data class CategoryBudget(
         fun fromMap(id: String, map: Map<String, Any?>): CategoryBudget = CategoryBudget(
             id = id,
             category = map["category"] as? String ?: "",
-            spent = (map["spent"] as? Number)?.toDouble() ?: 0.0,
             limit = (map["limit"] as? Number)?.toDouble() ?: 0.0
         )
     }
 }
 
-/** Resumen financiero consolidado para la aplicación */
+/** Resumen financiero del usuario, calculado a partir de sus movimientos y presupuestos. */
 data class FinanceSummary(
-    val availableBalance: Double = 1284.50,
-    val monthlyIncome: Double = 1850.00,
-    val monthlyExpenses: Double = 565.50,
-    val totalBudgeted: Double = 980.00,
-    val budgetAlert: BudgetAlert = BudgetAlert(),
+    val availableBalance: Double = 0.0,
+    val monthlyIncome: Double = 0.0,
+    val monthlyExpenses: Double = 0.0,
+    val totalBudgeted: Double = 0.0,
+    val totalBudgetSpent: Double = 0.0,
+    val budgetAlert: BudgetAlert? = null,
     val monthlyBars: List<MonthlyExpenseBar> = emptyList(),
     val recentMovements: List<Movement> = emptyList(),
     val budgets: List<CategoryBudget> = emptyList()
