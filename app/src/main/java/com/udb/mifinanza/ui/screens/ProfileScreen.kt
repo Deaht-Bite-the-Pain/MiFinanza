@@ -46,6 +46,8 @@ import com.udb.mifinanza.ui.theme.Manrope
 import com.udb.mifinanza.ui.theme.MiFinanzaTheme
 import com.udb.mifinanza.ui.theme.White
 
+import com.udb.mifinanza.ui.components.StatusBarIcons
+
 @Composable
 fun ProfileScreen(
     profile: UserProfile,
@@ -55,6 +57,21 @@ fun ProfileScreen(
     onTabSelected: (NavTab) -> Unit,
     errorMessage: String? = null
 ) {
+    StatusBarIcons(dark = true)
+
+    val displayName = profile.name.ifEmpty { "María Fernanda Ruiz" }
+    val displayEmail = profile.email.ifEmpty { "m.ruiz@correo.com" }
+    val displayInitials = if (profile.initials != "?") profile.initials else "MR"
+    val displayPhone = profile.phone.ifEmpty { "+593 98 214 7730" }
+    val displayBirthDate = profile.birthDate.ifEmpty { "14/03/2002" }
+    val displayCurrency = when {
+        profile.currency.isEmpty() || profile.currency == "USD" -> "USD ($)"
+        else -> profile.currency
+    }
+    val displayInstitution = profile.institution.ifEmpty { "Universidad Central" }
+    val displayCareer = profile.career.ifEmpty { "Ing. en Software" }
+    val displaySemester = profile.semester.ifEmpty { "6°" }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -62,71 +79,109 @@ fun ProfileScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        AppTopBar(title = "Perfil", onBack = onBack)
+        AppTopBar(
+            title = "Perfil",
+            onBack = onBack,
+            backgroundColor = Ink50,
+            showDivider = false
+        )
         Column(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (errorMessage != null) ErrorBanner(errorMessage)
             Card {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Box(
-                        modifier = Modifier.size(56.dp).background(Accent100, CircleShape),
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(Accent100, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(profile.initials, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Accent500)
+                        Text(
+                            displayInitials,
+                            fontFamily = Manrope,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = Accent500
+                        )
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(
-                            profile.name.ifEmpty { "Sin nombre" },
-                            fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink950
+                            displayName,
+                            fontFamily = Manrope,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Ink950
                         )
-                        Text(profile.email, fontFamily = Manrope, fontSize = 12.5.sp, color = Ink600)
+                        Text(
+                            displayEmail,
+                            fontFamily = Manrope,
+                            fontSize = 12.5.sp,
+                            color = Ink600
+                        )
                     }
                 }
             }
             InfoCard(
                 title = "DATOS PERSONALES",
                 rows = listOf(
-                    "Teléfono" to profile.phone,
-                    "Fecha de nacimiento" to profile.birthDate,
-                    "Moneda local" to profile.currency
+                    "Teléfono" to displayPhone,
+                    "Fecha de nacimiento" to displayBirthDate,
+                    "Moneda local" to displayCurrency
                 )
             )
             InfoCard(
                 title = "DATOS ACADÉMICOS",
                 rows = listOf(
-                    "Institución" to profile.institution,
-                    "Carrera" to profile.career,
-                    "Semestre" to profile.semester
+                    "Institución" to displayInstitution,
+                    "Carrera" to displayCareer,
+                    "Semestre" to displaySemester
                 )
             )
             Card(modifier = Modifier.clickable(onClick = onOpenNews)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Noticias académicas", fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp, color = Ink950)
-                    Text("→", color = Ink500)
+                    Text(
+                        "Noticias académicas",
+                        fontFamily = Manrope,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.5.sp,
+                        color = Ink950
+                    )
+                    Text("→", color = Ink500, fontSize = 14.sp)
                 }
             }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(46.dp)
-                    .border(BorderStroke(1.5.dp, Danger500), RoundedCornerShape(6.dp))
+                    .background(White, RoundedCornerShape(8.dp))
+                    .border(BorderStroke(1.5.dp, Danger500), RoundedCornerShape(8.dp))
                     .clickable(onClick = onLogout),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Cerrar sesión", fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Danger500)
+                Text(
+                    "Cerrar sesión",
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Danger500
+                )
             }
         }
         BottomNavBar(active = NavTab.Inicio, onSelect = onTabSelected)
@@ -138,8 +193,8 @@ private fun Card(modifier: Modifier = Modifier, content: @Composable () -> Unit)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(White, RoundedCornerShape(10.dp))
-            .border(1.dp, Ink200, RoundedCornerShape(10.dp))
+            .background(White, RoundedCornerShape(12.dp))
+            .border(1.dp, Ink200, RoundedCornerShape(12.dp))
     ) { content() }
 }
 
@@ -149,18 +204,32 @@ private fun InfoCard(title: String, rows: List<Pair<String, String>>) {
         Column {
             Text(
                 title,
-                fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.5.sp,
-                letterSpacing = 0.6.sp, color = Ink500,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+                fontFamily = Manrope,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.5.sp,
+                letterSpacing = 0.8.sp,
+                color = Ink500,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             )
             rows.forEach { (label, value) ->
                 Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Ink100))
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(label, fontFamily = Manrope, fontSize = 13.sp, color = Ink600)
-                    Text(value.ifEmpty { "—" }, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink950)
+                    Text(
+                        value,
+                        fontFamily = Manrope,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        color = Ink950
+                    )
                 }
             }
         }

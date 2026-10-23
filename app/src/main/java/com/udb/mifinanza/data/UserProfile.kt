@@ -11,9 +11,23 @@ data class UserProfile(
     val career: String = "",
     val semester: String = ""
 ) {
+    val firstName: String
+        get() {
+            val trimmed = name.trim()
+            if (trimmed.isEmpty()) return "Usuario"
+            val parts = trimmed.split("\\s+".toRegex())
+            return if (parts.size >= 2) "${parts[0]} ${parts[1]}" else parts[0]
+        }
+
     val initials: String
-        get() = name.trim().split(" ").filter { it.isNotEmpty() }.take(2)
-            .joinToString("") { it.first().uppercase() }.ifEmpty { "?" }
+        get() {
+            val parts = name.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
+            return when {
+                parts.isEmpty() -> "?"
+                parts.size == 1 -> parts[0].take(2).uppercase()
+                else -> "${parts.first().first()}${parts.last().first()}".uppercase()
+            }
+        }
 
     fun toMap(): Map<String, Any> = mapOf(
         "name" to name,

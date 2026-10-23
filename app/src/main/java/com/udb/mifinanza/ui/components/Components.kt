@@ -288,9 +288,11 @@ fun SelectField(
 fun AppTopBar(
     title: String,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = White,
+    showDivider: Boolean = true
 ) {
-    Column(modifier = modifier.fillMaxWidth().background(White)) {
+    Column(modifier = modifier.fillMaxWidth().background(backgroundColor)) {
         Row(
             modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -304,7 +306,9 @@ fun AppTopBar(
             }
             Text(title, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Ink950)
         }
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Ink200))
+        if (showDivider) {
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Ink200))
+        }
     }
 }
 
