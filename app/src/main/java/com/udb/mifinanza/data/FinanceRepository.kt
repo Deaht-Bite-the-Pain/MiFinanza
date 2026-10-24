@@ -100,6 +100,7 @@ class FinanceRepository(
             budgetAlert = alert,
             monthlyBars = bars,
             recentMovements = movements.take(RECENT_COUNT),
+            allMovements = movements,
             budgets = budgets
         )
     }

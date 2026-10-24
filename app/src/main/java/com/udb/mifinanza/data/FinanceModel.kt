@@ -154,5 +154,7 @@ data class FinanceSummary(
     val budgetAlert: BudgetAlert? = null,
     val monthlyBars: List<MonthlyExpenseBar> = emptyList(),
     val recentMovements: List<Movement> = emptyList(),
+    /** Todos los movimientos del usuario, del más reciente al más antiguo (para el historial). */
+    val allMovements: List<Movement> = emptyList(),
     val budgets: List<CategoryBudget> = emptyList()
 )

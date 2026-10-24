@@ -18,6 +18,7 @@ import com.udb.mifinanza.ui.components.NavTab
 import com.udb.mifinanza.ui.finance.FinanceViewModel
 import com.udb.mifinanza.ui.screens.BudgetScreen
 import com.udb.mifinanza.ui.screens.ForgotPasswordScreen
+import com.udb.mifinanza.ui.screens.HistoryScreen
 import com.udb.mifinanza.ui.screens.HomeScreen
 import com.udb.mifinanza.ui.screens.LoginScreen
 import com.udb.mifinanza.ui.screens.MovementDetailScreen
@@ -36,6 +37,7 @@ object Routes {
     const val NEW_MOVEMENT = "new_movement"
     const val MOVEMENT_DETAIL = "movement_detail"
     const val BUDGETS = "budgets"
+    const val HISTORY = "history"
 }
 
 @Composable
@@ -123,7 +125,7 @@ fun AppNavigation() {
                         NavTab.Inicio -> { /* Ya estamos en Inicio */ }
                         NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
                         NavTab.Movimientos -> { /* Vista de movimientos */ }
-                        NavTab.Historial -> { /* TODO */ }
+                        NavTab.Historial -> navController.navigate(Routes.HISTORY)
                     }
                 },
                 financeViewModel = financeViewModel
@@ -172,7 +174,7 @@ fun AppNavigation() {
                         }
                         NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
                         NavTab.Movimientos -> { /* Ya en movimientos */ }
-                        NavTab.Historial -> { /* TODO */ }
+                        NavTab.Historial -> navController.navigate(Routes.HISTORY)
                     }
                 }
             )
@@ -190,10 +192,38 @@ fun AppNavigation() {
                         }
                         NavTab.Presupuestos -> { /* Ya en Presupuestos */ }
                         NavTab.Movimientos -> navController.navigate(Routes.HOME)
-                        NavTab.Historial -> { /* TODO */ }
+                        NavTab.Historial -> navController.navigate(Routes.HISTORY)
                     }
                 },
                 financeViewModel = financeViewModel
+            )
+        }
+        composable(Routes.HISTORY) {
+            LaunchedEffect(Unit) { financeViewModel.loadSummary() }
+            HistoryScreen(
+                movements = finance.summary.allMovements,
+                loaded = finance.loaded,
+                error = finance.error,
+                currencySymbol = currencySymbol,
+                onMovementClick = { movement ->
+                    selectedMovement = movement
+                    navController.navigate(Routes.MOVEMENT_DETAIL)
+                },
+                onAddMovement = {
+                    selectedMovement = null
+                    navController.navigate(Routes.NEW_MOVEMENT)
+                },
+                onRetry = { financeViewModel.loadSummary() },
+                onTabSelected = { tab ->
+                    when (tab) {
+                        NavTab.Inicio -> navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.HOME) { inclusive = true }
+                        }
+                        NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
+                        NavTab.Movimientos -> navController.navigate(Routes.HOME)
+                        NavTab.Historial -> { /* Ya en Historial */ }
+                    }
+                }
             )
         }
         composable(Routes.PROFILE) {
@@ -214,7 +244,7 @@ fun AppNavigation() {
                         }
                         NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
                         NavTab.Movimientos -> navController.navigate(Routes.HOME)
-                        NavTab.Historial -> { /* TODO */ }
+                        NavTab.Historial -> navController.navigate(Routes.HISTORY)
                     }
                 },
                 errorMessage = auth.error

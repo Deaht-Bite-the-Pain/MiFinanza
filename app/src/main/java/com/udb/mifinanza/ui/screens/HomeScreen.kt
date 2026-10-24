@@ -126,7 +126,7 @@ fun HomeScreen(
                         movements = summary.recentMovements,
                         symbol = symbol,
                         onMovementClick = onOpenMovementDetail,
-                        onViewAll = { onTabSelected(NavTab.Movimientos) }
+                        onViewAll = { onTabSelected(NavTab.Historial) }
                     )
                 }
 
