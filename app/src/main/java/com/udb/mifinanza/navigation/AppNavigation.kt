@@ -88,13 +88,18 @@ fun AppNavigation() {
             )
         }
         composable(Routes.FORGOT_PASSWORD) {
+            LaunchedEffect(Unit) { authViewModel.clearError() }
             ForgotPasswordScreen(
                 onBack = { navController.popBackStack() },
-                onPasswordResetSuccess = {
+                onSendLink = { email -> authViewModel.sendPasswordReset(email) },
+                onBackToLogin = {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
-                }
+                },
+                isLoading = auth.isLoading,
+                linkSent = auth.resetEmailSent,
+                errorMessage = auth.error
             )
         }
         composable(Routes.HOME) {

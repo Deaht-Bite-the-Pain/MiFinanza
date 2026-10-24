@@ -1,9 +1,7 @@
 package com.udb.mifinanza.ui.screens
 
-import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,62 +18,48 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
 import com.udb.mifinanza.ui.components.AppTopBar
-import com.udb.mifinanza.ui.components.FieldShape
+import com.udb.mifinanza.ui.components.ErrorBanner
 import com.udb.mifinanza.ui.components.LabeledTextField
+import com.udb.mifinanza.ui.components.OutlinedAppButton
 import com.udb.mifinanza.ui.components.PrimaryButton
-import com.udb.mifinanza.ui.theme.Ink200
-import com.udb.mifinanza.ui.theme.Ink400
+import com.udb.mifinanza.ui.components.StatusBarIcons
+import com.udb.mifinanza.ui.components.SuccessBanner
+import com.udb.mifinanza.ui.theme.Accent500
 import com.udb.mifinanza.ui.theme.Ink50
 import com.udb.mifinanza.ui.theme.Ink700
-import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
 import com.udb.mifinanza.ui.theme.MiFinanzaTheme
 import com.udb.mifinanza.ui.theme.White
 
+/**
+ * Recuperar contraseña: Firebase envía un enlace al correo y la nueva contraseña se
+ * define en la página a la que lleva ese enlace (no hay código de 6 dígitos).
+ */
 @Composable
 fun ForgotPasswordScreen(
     onBack: () -> Unit,
-    onSendCode: (email: String) -> Unit = {},
-    onResetPassword: (code: String, newPassword: String) -> Unit = { _, _ -> },
-    onPasswordResetSuccess: () -> Unit = onBack,
-    initialEmail: String = "",
-    initialCodeSent: Boolean = false
+    onSendLink: (email: String) -> Unit = {},
+    onBackToLogin: () -> Unit = onBack,
+    isLoading: Boolean = false,
+    linkSent: Boolean = false,
+    errorMessage: String? = null,
+    initialEmail: String = ""
 ) {
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        DisposableEffect(Unit) {
-            val controller = (view.context as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view) }
-            val previous = controller?.isAppearanceLightStatusBars
-            controller?.isAppearanceLightStatusBars = true
-            onDispose { if (previous != null) controller.isAppearanceLightStatusBars = previous }
-        }
-    }
+    StatusBarIcons(dark = true)
 
     var email by remember { mutableStateOf(initialEmail) }
-    var codeSent by remember { mutableStateOf(initialCodeSent) }
-    var code by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmNewPassword by remember { mutableStateOf("") }
-
-    val passwordsDoNotMatch = confirmNewPassword.isNotEmpty() && newPassword != confirmNewPassword
-    val canSave = codeSent && code.isNotBlank() && newPassword.length >= 8 && newPassword == confirmNewPassword
 
     Column(
         modifier = Modifier
@@ -111,7 +95,7 @@ fun ForgotPasswordScreen(
                     .padding(horizontal = 14.dp, vertical = 14.dp)
             ) {
                 Text(
-                    text = "Paso 1 de 2 · Enviaremos un código de 6 dígitos al correo registrado.",
+                    text = "Ingresa el correo de tu cuenta y te enviaremos un enlace para crear una nueva contraseña.",
                     fontFamily = Manrope,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
@@ -126,114 +110,43 @@ fun ForgotPasswordScreen(
                 value = email,
                 onValueChange = { email = it },
                 placeholder = "correo@ejemplo.com",
+                enabled = !linkSent,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Done
                 )
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            if (errorMessage != null) {
+                Spacer(modifier = Modifier.height(14.dp))
+                ErrorBanner(errorMessage)
+            }
 
-            PrimaryButton(
-                text = "Enviar código",
-                onClick = {
-                    codeSent = true
-                    onSendCode(email)
-                }
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(Ink200)
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "Paso 2 · Nueva contraseña",
-                fontFamily = Manrope,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = Ink950
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            LabeledTextField(
-                label = "Código de verificación",
-                value = code,
-                onValueChange = { code = it },
-                placeholder = "—  —  —  —  —  —",
-                enabled = codeSent,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Next
+            if (linkSent) {
+                Spacer(modifier = Modifier.height(14.dp))
+                SuccessBanner(
+                    "Listo. Si el correo está registrado, recibirás un enlace para restablecer tu contraseña. " +
+                        "Revisa también la carpeta de spam."
                 )
-            )
+            }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            LabeledTextField(
-                label = "Nueva contraseña",
-                value = newPassword,
-                onValueChange = { newPassword = it },
-                placeholder = "Mínimo 8 caracteres",
-                isPassword = true,
-                showToggle = false,
-                enabled = codeSent,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Next
-                )
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            LabeledTextField(
-                label = "Confirmar nueva contraseña",
-                value = confirmNewPassword,
-                onValueChange = { confirmNewPassword = it },
-                placeholder = "Repite la contraseña",
-                isPassword = true,
-                showToggle = false,
-                enabled = codeSent,
-                errorText = if (passwordsDoNotMatch) "Las contraseñas no coinciden" else null,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (canSave) {
-                PrimaryButton(
-                    text = "Guardar contraseña",
-                    onClick = {
-                        onResetPassword(code, newPassword)
-                        onPasswordResetSuccess()
-                    }
+            if (linkSent) {
+                PrimaryButton(text = "Volver a iniciar sesión", onClick = onBackToLogin)
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedAppButton(
+                    text = "Reenviar enlace",
+                    onClick = { onSendLink(email) },
+                    borderColor = Accent500,
+                    contentColor = Accent500
                 )
             } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .background(Color(0xFFE1E7EC), FieldShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Guardar contraseña",
-                        fontFamily = Manrope,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        color = Ink400
-                    )
-                }
+                PrimaryButton(
+                    text = "Enviar enlace",
+                    loading = isLoading,
+                    onClick = { onSendLink(email) }
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -241,26 +154,14 @@ fun ForgotPasswordScreen(
     }
 }
 
-@Preview(name = "Diseño Idéntico (Referencia)", showBackground = true, widthDp = 360, heightDp = 800)
+@Preview(name = "Formulario", showBackground = true, widthDp = 360, heightDp = 800)
 @Composable
-private fun ForgotPasswordMockupPreview() {
-    MiFinanzaTheme {
-        ForgotPasswordScreen(
-            onBack = {},
-            initialEmail = "m.ruiz@correo.com",
-            initialCodeSent = false
-        )
-    }
+private fun ForgotPasswordPreview() {
+    MiFinanzaTheme { ForgotPasswordScreen(onBack = {}, initialEmail = "m.ruiz@correo.com") }
 }
 
-@Preview(name = "Paso 2 Activo", showBackground = true, widthDp = 360, heightDp = 800)
+@Preview(name = "Enlace enviado", showBackground = true, widthDp = 360, heightDp = 800)
 @Composable
-private fun ForgotPasswordActivePreview() {
-    MiFinanzaTheme {
-        ForgotPasswordScreen(
-            onBack = {},
-            initialEmail = "m.ruiz@correo.com",
-            initialCodeSent = true
-        )
-    }
+private fun ForgotPasswordSentPreview() {
+    MiFinanzaTheme { ForgotPasswordScreen(onBack = {}, initialEmail = "m.ruiz@correo.com", linkSent = true) }
 }

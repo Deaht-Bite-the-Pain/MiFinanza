@@ -17,7 +17,8 @@ import kotlinx.coroutines.launch
 data class AuthUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
-    val profile: UserProfile? = null
+    val profile: UserProfile? = null,
+    val resetEmailSent: Boolean = false
 )
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
@@ -34,7 +35,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     val isSignedIn: Boolean get() = repository.isSignedIn
 
-    fun clearError() = _state.update { it.copy(error = null) }
+    fun clearError() = _state.update { it.copy(error = null, resetEmailSent = false) }
 
     fun login(email: String, password: String, remember: Boolean, onSuccess: () -> Unit) {
         if (email.isBlank() || password.isEmpty()) {
@@ -62,6 +63,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             repository.register(name.trim(), email.trim(), password, currency.substringBefore(" ")).onSuccess {
                 setKeepSession(true)
             }
+        }
+    }
+
+    /** Envía el enlace de restablecimiento de Firebase al correo indicado. */
+    fun sendPasswordReset(email: String) {
+        if (!Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) {
+            _state.update { it.copy(error = "Ingresa un correo válido.", resetEmailSent = false) }
+            return
+        }
+        if (_state.value.isLoading) return
+        _state.update { it.copy(isLoading = true, error = null, resetEmailSent = false) }
+        viewModelScope.launch {
+            repository.sendPasswordReset(email.trim())
+                .onSuccess { _state.update { it.copy(isLoading = false, resetEmailSent = true) } }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toUserMessage()) } }
         }
     }
 

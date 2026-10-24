@@ -62,6 +62,8 @@ import com.udb.mifinanza.ui.theme.Ink500
 import com.udb.mifinanza.ui.theme.Ink600
 import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
+import com.udb.mifinanza.ui.theme.Success100
+import com.udb.mifinanza.ui.theme.Success500
 import com.udb.mifinanza.ui.theme.White
 
 val FieldShape = RoundedCornerShape(6.dp)
@@ -125,6 +127,20 @@ fun ErrorBanner(message: String, modifier: Modifier = Modifier) {
 fun LoadingBox(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(modifier = Modifier.size(32.dp), color = Accent500, strokeWidth = 3.dp)
+    }
+}
+
+/** Mensaje de confirmación (verde suave). */
+@Composable
+fun SuccessBanner(message: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Success100, RoundedCornerShape(10.dp))
+            .border(1.dp, Success500, RoundedCornerShape(10.dp))
+            .padding(12.dp)
+    ) {
+        Text(message, fontFamily = Manrope, fontSize = 12.5.sp, lineHeight = 18.sp, color = Success500)
     }
 }
 
