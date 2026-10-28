@@ -14,42 +14,33 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.udb.mifinanza.data.CategoryBudget
-import com.udb.mifinanza.data.ExpenseCategories
-import com.udb.mifinanza.data.filterAmountInput
 import com.udb.mifinanza.data.formatMoney
+import com.udb.mifinanza.ui.components.BottomNavBar
+import com.udb.mifinanza.ui.components.BudgetExceededDialog
 import com.udb.mifinanza.ui.components.ErrorBanner
 import com.udb.mifinanza.ui.components.LoadingBox
-import com.udb.mifinanza.ui.components.SelectField
-import com.udb.mifinanza.ui.components.BottomNavBar
-import com.udb.mifinanza.ui.components.LabeledTextField
 import com.udb.mifinanza.ui.components.NavTab
 import com.udb.mifinanza.ui.components.StatusBarIcons
 import com.udb.mifinanza.ui.finance.FinanceViewModel
@@ -60,7 +51,6 @@ import com.udb.mifinanza.ui.theme.Ink200
 import com.udb.mifinanza.ui.theme.Ink400
 import com.udb.mifinanza.ui.theme.Ink50
 import com.udb.mifinanza.ui.theme.Ink500
-import com.udb.mifinanza.ui.theme.Ink600
 import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
 import com.udb.mifinanza.ui.theme.MiFinanzaTheme
@@ -73,6 +63,8 @@ import java.util.Locale
 fun BudgetScreen(
     currencySymbol: String,
     onTabSelected: (NavTab) -> Unit,
+    onAddBudget: () -> Unit = {},
+    onEditBudget: (CategoryBudget) -> Unit = {},
     financeViewModel: FinanceViewModel = viewModel()
 ) {
     StatusBarIcons(dark = true)
@@ -81,9 +73,20 @@ fun BudgetScreen(
     val summary = financeState.summary
     val budgets = summary.budgets
 
-    var showNewBudgetDialog by remember { mutableStateOf(false) }
-    // Presupuesto que se está editando (null = crear uno nuevo).
-    var editingBudget by remember { mutableStateOf<CategoryBudget?>(null) }
+    var exceededBudgetToShow by remember { mutableStateOf<CategoryBudget?>(null) }
+    var hasAutoShownAlert by rememberSaveable { mutableStateOf(false) }
+
+    // Al cargar los presupuestos, si hay alguno excedido, mostrar automáticamente el modal de alerta (una vez al entrar)
+    LaunchedEffect(budgets) {
+        if (!hasAutoShownAlert && budgets.isNotEmpty()) {
+            val firstExceeded = budgets.find { it.isExceeded }
+            if (firstExceeded != null) {
+                exceededBudgetToShow = firstExceeded
+                hasAutoShownAlert = true
+            }
+        }
+    }
+
     val monthTitle = remember {
         SimpleDateFormat("MMMM  yyyy", Locale("es", "ES")).format(Date()).uppercase()
     }
@@ -209,8 +212,11 @@ fun BudgetScreen(
                             budget = budget,
                             currencySymbol = currencySymbol,
                             onClick = {
-                                editingBudget = budget
-                                showNewBudgetDialog = true
+                                if (budget.isExceeded) {
+                                    exceededBudgetToShow = budget
+                                } else {
+                                    onEditBudget(budget)
+                                }
                             }
                         )
                     }
@@ -231,8 +237,7 @@ fun BudgetScreen(
                 .padding(end = 20.dp, bottom = 80.dp)
                 .background(Accent500, RoundedCornerShape(16.dp))
                 .clickable {
-                    editingBudget = null
-                    showNewBudgetDialog = true
+                    onAddBudget()
                 }
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             contentAlignment = Alignment.Center
@@ -257,16 +262,16 @@ fun BudgetScreen(
             }
         }
 
-        // Diálogo para Agregar / Editar Presupuesto
-        if (showNewBudgetDialog) {
-            AddBudgetDialog(
-                initial = editingBudget,
-                existingCategories = budgets.map { it.category },
-                onDismiss = { showNewBudgetDialog = false },
-                onSave = { newBudget ->
-                    financeViewModel.saveBudget(newBudget) {
-                        showNewBudgetDialog = false
-                    }
+        // Modal de Alerta de Presupuesto Excedido
+        exceededBudgetToShow?.let { budget ->
+            BudgetExceededDialog(
+                budget = budget,
+                currencySymbol = currencySymbol,
+                onDismiss = { exceededBudgetToShow = null },
+                onAdjustLimit = {
+                    val toEdit = budget
+                    exceededBudgetToShow = null
+                    onEditBudget(toEdit)
                 }
             )
         }
@@ -386,80 +391,6 @@ private fun BudgetCategoryCard(budget: CategoryBudget, currencySymbol: String, o
             }
         }
     }
-}
-
-@Composable
-private fun AddBudgetDialog(
-    initial: CategoryBudget?,
-    existingCategories: List<String>,
-    onDismiss: () -> Unit,
-    onSave: (CategoryBudget) -> Unit
-) {
-    // Para un presupuesto nuevo se sugiere la primera categoría que aún no tenga uno.
-    var category by remember {
-        mutableStateOf(initial?.category ?: ExpenseCategories.firstOrNull { it !in existingCategories } ?: ExpenseCategories.first())
-    }
-    var limitText by remember {
-        mutableStateOf(initial?.let { String.format(Locale.US, "%.2f", it.limit) } ?: "")
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                if (initial == null) "Nuevo Presupuesto" else "Editar Presupuesto",
-                fontFamily = Manrope,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (initial == null) {
-                    SelectField(
-                        label = "Categoría",
-                        options = ExpenseCategories,
-                        selected = category,
-                        onSelected = { category = it }
-                    )
-                } else {
-                    LabeledTextField(label = "Categoría", value = category, onValueChange = {}, enabled = false)
-                }
-                if (initial == null && category in existingCategories) {
-                    Text(
-                        "Ya tienes un presupuesto para $category; se actualizará su límite.",
-                        fontFamily = Manrope,
-                        fontSize = 11.5.sp,
-                        color = Ink500
-                    )
-                }
-                LabeledTextField(
-                    label = "Límite mensual",
-                    value = limitText,
-                    onValueChange = { limitText = filterAmountInput(it, limitText) },
-                    placeholder = "150.00",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val limit = limitText.toDoubleOrNull() ?: 0.0
-                    if (category.isNotBlank() && limit > 0.0) {
-                        onSave(CategoryBudget(id = initial?.id ?: "", category = category, limit = limit))
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Accent500)
-            ) {
-                Text("Guardar", color = White)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = Ink600)
-            }
-        }
-    )
 }
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 800)

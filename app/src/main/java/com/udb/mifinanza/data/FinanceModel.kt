@@ -123,7 +123,10 @@ data class CategoryBudget(
     val id: String = "",
     val category: String = "",
     val spent: Double = 0.0,
-    val limit: Double = 0.0
+    val limit: Double = 0.0,
+    val period: String = "Mensual",
+    val alertEnabled: Boolean = true,
+    val alertThreshold: Int = 80
 ) {
     val isExceeded: Boolean get() = spent > limit
     val percentage: Int get() = if (limit > 0) ((spent / limit) * 100).toInt() else 0
@@ -132,14 +135,20 @@ data class CategoryBudget(
 
     fun toMap(): Map<String, Any> = mapOf(
         "category" to category,
-        "limit" to limit
+        "limit" to limit,
+        "period" to period,
+        "alertEnabled" to alertEnabled,
+        "alertThreshold" to alertThreshold
     )
 
     companion object {
         fun fromMap(id: String, map: Map<String, Any?>): CategoryBudget = CategoryBudget(
             id = id,
             category = map["category"] as? String ?: "",
-            limit = (map["limit"] as? Number)?.toDouble() ?: 0.0
+            limit = (map["limit"] as? Number)?.toDouble() ?: 0.0,
+            period = map["period"] as? String ?: "Mensual",
+            alertEnabled = map["alertEnabled"] as? Boolean ?: true,
+            alertThreshold = (map["alertThreshold"] as? Number)?.toInt() ?: 80
         )
     }
 }

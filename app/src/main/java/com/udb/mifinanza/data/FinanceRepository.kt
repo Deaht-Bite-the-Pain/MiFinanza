@@ -87,7 +87,7 @@ class FinanceRepository(
 
         val daysRemaining = now.getActualMaximum(Calendar.DAY_OF_MONTH) - now.get(Calendar.DAY_OF_MONTH)
         val alert = budgets
-            .filter { it.limit > 0 && it.percentage >= ALERT_PERCENTAGE }
+            .filter { it.limit > 0 && it.alertEnabled && it.percentage >= it.alertThreshold }
             .maxByOrNull { it.spent / it.limit }
             ?.let { BudgetAlert(it.category, it.spent, it.limit, daysRemaining) }
 
@@ -115,7 +115,6 @@ class FinanceRepository(
         const val MOVEMENTS = "movements"
         const val BUDGETS = "budgets"
         const val RECENT_COUNT = 5
-        const val ALERT_PERCENTAGE = 80
         val MONTH_LABELS = listOf("ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC")
     }
 }

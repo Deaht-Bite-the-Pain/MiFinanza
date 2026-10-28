@@ -13,6 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.udb.mifinanza.data.CategoryBudget
 import com.udb.mifinanza.data.Movement
 import com.udb.mifinanza.ui.components.NavTab
 import com.udb.mifinanza.ui.finance.FinanceViewModel
@@ -22,6 +23,7 @@ import com.udb.mifinanza.ui.screens.HistoryScreen
 import com.udb.mifinanza.ui.screens.HomeScreen
 import com.udb.mifinanza.ui.screens.LoginScreen
 import com.udb.mifinanza.ui.screens.MovementDetailScreen
+import com.udb.mifinanza.ui.screens.NewBudgetScreen
 import com.udb.mifinanza.ui.screens.NewMovementScreen
 import com.udb.mifinanza.ui.screens.ProfileScreen
 import com.udb.mifinanza.ui.screens.RegisterScreen
@@ -37,6 +39,7 @@ object Routes {
     const val NEW_MOVEMENT = "new_movement"
     const val MOVEMENT_DETAIL = "movement_detail"
     const val BUDGETS = "budgets"
+    const val NEW_BUDGET = "new_budget"
     const val HISTORY = "history"
 }
 
@@ -51,6 +54,7 @@ fun AppNavigation() {
     val startDestination = remember { if (authViewModel.isSignedIn) Routes.HOME else Routes.WELCOME }
 
     var selectedMovement by remember { mutableStateOf<Movement?>(null) }
+    var selectedBudget by remember { mutableStateOf<CategoryBudget?>(null) }
 
     fun goHome() = navController.navigate(Routes.HOME) { popUpTo(0) }
 
@@ -195,7 +199,31 @@ fun AppNavigation() {
                         NavTab.Historial -> navController.navigate(Routes.HISTORY)
                     }
                 },
+                onAddBudget = {
+                    selectedBudget = null
+                    navController.navigate(Routes.NEW_BUDGET)
+                },
+                onEditBudget = { budget ->
+                    selectedBudget = budget
+                    navController.navigate(Routes.NEW_BUDGET)
+                },
                 financeViewModel = financeViewModel
+            )
+        }
+        composable(Routes.NEW_BUDGET) {
+            NewBudgetScreen(
+                initialBudget = selectedBudget,
+                currencySymbol = currencySymbol,
+                movements = finance.summary.allMovements,
+                existingBudgetCategories = finance.summary.budgets.map { it.category },
+                isSaving = finance.isLoading,
+                errorMessage = finance.error,
+                onCancel = { navController.popBackStack() },
+                onSave = { budget ->
+                    financeViewModel.saveBudget(budget) {
+                        navController.popBackStack()
+                    }
+                }
             )
         }
         composable(Routes.HISTORY) {
