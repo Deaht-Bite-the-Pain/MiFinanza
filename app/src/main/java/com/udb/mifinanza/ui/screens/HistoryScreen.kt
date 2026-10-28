@@ -1,6 +1,7 @@
 package com.udb.mifinanza.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,13 +37,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.udb.mifinanza.data.HistoryFilter
 import com.udb.mifinanza.data.Movement
 import com.udb.mifinanza.data.MovementType
+import com.udb.mifinanza.data.TypeFilter
 import com.udb.mifinanza.data.filterHistory
 import com.udb.mifinanza.data.formatDate
 import com.udb.mifinanza.data.formatDayHeader
@@ -66,8 +67,10 @@ import com.udb.mifinanza.ui.theme.Accent500
 import com.udb.mifinanza.ui.theme.Accent700
 import com.udb.mifinanza.ui.theme.Danger500
 import com.udb.mifinanza.ui.theme.Ink200
+import com.udb.mifinanza.ui.theme.Ink400
 import com.udb.mifinanza.ui.theme.Ink50
 import com.udb.mifinanza.ui.theme.Ink500
+import com.udb.mifinanza.ui.theme.Ink600
 import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
 import com.udb.mifinanza.ui.theme.MiFinanzaTheme
@@ -75,26 +78,42 @@ import com.udb.mifinanza.ui.theme.Success500
 import com.udb.mifinanza.ui.theme.White
 import kotlin.math.abs
 
-private fun strokeIcon(vararg paths: String): ImageVector =
-    ImageVector.Builder(
-        defaultWidth = 24.dp,
-        defaultHeight = 24.dp,
-        viewportWidth = 24f,
-        viewportHeight = 24f
-    ).apply {
-        paths.forEach { d ->
-            addPath(
-                pathData = PathParser().parsePathString(d).toNodes(),
-                stroke = SolidColor(androidx.compose.ui.graphics.Color.Black),
-                strokeLineWidth = 1.8f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round
-            )
-        }
-    }.build()
+/** Ícono de filtro con 3 barras horizontales alineadas como en el diseño */
+@Composable
+fun FilterBarsIcon(modifier: Modifier = Modifier, tint: Color = Accent500) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val strokeWidthPx = 2.dp.toPx()
 
-/** Ícono de embudo del botón de filtros. */
-internal val FilterIcon: ImageVector by lazy { strokeIcon("M3 5h18l-7 8v6l-4-2v-4z") }
+        // Barra superior (más ancha)
+        drawLine(
+            color = tint,
+            start = Offset(w * 0.20f, h * 0.32f),
+            end = Offset(w * 0.80f, h * 0.32f),
+            strokeWidth = strokeWidthPx,
+            cap = StrokeCap.Round
+        )
+
+        // Barra intermedia (media)
+        drawLine(
+            color = tint,
+            start = Offset(w * 0.32f, h * 0.50f),
+            end = Offset(w * 0.68f, h * 0.50f),
+            strokeWidth = strokeWidthPx,
+            cap = StrokeCap.Round
+        )
+
+        // Barra inferior (corta)
+        drawLine(
+            color = tint,
+            start = Offset(w * 0.44f, h * 0.68f),
+            end = Offset(w * 0.56f, h * 0.68f),
+            strokeWidth = strokeWidthPx,
+            cap = StrokeCap.Round
+        )
+    }
+}
 
 @Composable
 fun HistoryScreen(
@@ -110,7 +129,17 @@ fun HistoryScreen(
     StatusBarIcons(dark = true)
 
     var query by rememberSaveable { mutableStateOf("") }
-    var filter by remember { mutableStateOf(HistoryFilter()) }
+
+    // Filtro inicial por defecto (Este mes y Gastos) idéntico a la imagen de muestra
+    val initialFilter = remember {
+        val (monthStart, monthEnd) = monthRange(System.currentTimeMillis())
+        HistoryFilter(
+            dateFrom = monthStart,
+            dateTo = monthEnd,
+            type = TypeFilter.GASTOS
+        )
+    }
+    var filter by remember { mutableStateOf(initialFilter) }
     var showFilters by remember { mutableStateOf(false) }
 
     val results = remember(movements, query, filter) { movements.filterHistory(query, filter) }
@@ -126,6 +155,7 @@ fun HistoryScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
+        // Cabecera superior con título, contador, buscador y chips
         HistoryHeader(
             count = results.size,
             query = query,
@@ -136,11 +166,15 @@ fun HistoryScreen(
             onFilterChange = { filter = it }
         )
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
             when {
                 !loaded && error == null -> LoadingBox()
                 !loaded -> Column(
-                    modifier = Modifier.padding(14.dp),
+                    modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     ErrorBanner(error ?: "")
@@ -156,7 +190,7 @@ fun HistoryScreen(
                 movements.isEmpty() -> EmptyState(
                     icon = Icons.AutoMirrored.Filled.List,
                     title = "Sin movimientos aún",
-                    message = "Registra tu primer ingreso o gasto para empezar a ver tu historial y tus reportes.",
+                    message = "Registra tu primer ingreso o gasto para empezar a ver tu historial.",
                     actionText = "Agregar movimiento",
                     onAction = onAddMovement
                 )
@@ -172,32 +206,42 @@ fun HistoryScreen(
                 )
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = 10.dp,
+                        bottom = 24.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     if (error != null) item { ErrorBanner(error) }
+
                     groups.forEach { (day, list) ->
+                        // Encabezado de fecha de cada grupo (ej: 12 AGO 2026 · -$42.80)
                         item(key = "day-$day") {
                             val net = list.sumOf { if (it.type == MovementType.INGRESO) it.amount else -it.amount }
                             val sign = if (net >= 0) "+" else "-"
                             Text(
-                                "${formatDayHeader(day)} · $sign${formatMoney(abs(net), currencySymbol)}",
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 10.5.sp,
-                                letterSpacing = 0.6.sp,
-                                color = Ink500,
-                                modifier = Modifier.padding(top = 4.dp)
+                                text = "${formatDayHeader(day)}  ·  $sign${formatMoney(abs(net), currencySymbol)}",
+                                fontFamily = Manrope,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp,
+                                letterSpacing = 0.5.sp,
+                                color = Color(0xFF385773),
+                                modifier = Modifier.padding(top = 14.dp, bottom = 4.dp, start = 2.dp)
                             )
                         }
+
+                        // Tarjetas de movimientos pertenecientes a este día
                         items(list, key = { it.id }) { movement ->
-                            MovementRow(movement, currencySymbol) { onMovementClick(movement) }
+                            MovementCard(movement, currencySymbol) { onMovementClick(movement) }
                         }
                     }
                 }
             }
         }
 
+        // Barra de navegación inferior
         BottomNavBar(active = NavTab.Historial, onSelect = onTabSelected)
     }
 
@@ -226,90 +270,181 @@ private fun HistoryHeader(
     onOpenFilters: () -> Unit,
     onFilterChange: (HistoryFilter) -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth().background(White)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(White)
+    ) {
         Column(
-            modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(top = 14.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Fila de Título y Conteo
             Row(
-                modifier = Modifier.fillMaxWidth().height(40.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Historial", fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Ink950)
                 Text(
-                    if (count == 1) "1 MOVIMIENTO" else "$count MOVIMIENTOS",
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Medium,
+                    text = "Historial",
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp,
+                    color = Ink950
+                )
+                Text(
+                    text = if (count == 1) "1 MOVIMIENTO" else "$count MOVIMIENTOS",
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 11.5.sp,
-                    color = Ink500
+                    letterSpacing = 0.5.sp,
+                    color = Color(0xFF385773)
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+
+            // Fila de Búsqueda y Botón de Filtros
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Campo de texto de búsqueda
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp)
-                        .background(Ink50, RoundedCornerShape(6.dp))
-                        .border(1.dp, Ink200, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 12.dp),
+                        .height(48.dp)
+                        .background(White, RoundedCornerShape(8.dp))
+                        .border(1.dp, Ink200, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Filled.Search, contentDescription = null, tint = Ink500, modifier = Modifier.size(18.dp))
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = "Buscar",
+                        tint = Ink500,
+                        modifier = Modifier.size(20.dp)
+                    )
                     Box(modifier = Modifier.weight(1f)) {
                         if (query.isEmpty()) {
-                            Text("Buscar por descripción o etiqueta", fontFamily = Manrope, fontSize = 13.5.sp, color = Ink500, maxLines = 1)
+                            Text(
+                                "Buscar por descripción o etiqueta",
+                                fontFamily = Manrope,
+                                fontSize = 13.5.sp,
+                                color = Ink400,
+                                maxLines = 1
+                            )
                         }
                         BasicTextField(
                             value = query,
                             onValueChange = onQueryChange,
                             singleLine = true,
-                            textStyle = TextStyle(fontFamily = Manrope, fontSize = 13.5.sp, color = Ink950),
+                            textStyle = TextStyle(
+                                fontFamily = Manrope,
+                                fontSize = 13.5.sp,
+                                color = Ink950
+                            ),
                             cursorBrush = SolidColor(Accent500),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                     if (query.isNotEmpty()) {
-                        Text("×", fontSize = 18.sp, color = Ink500, modifier = Modifier.clickable { onQueryChange("") })
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable { onQueryChange("") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "×",
+                                fontSize = 18.sp,
+                                color = Ink500,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
+
+                // Botón de filtros con 3 barras
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .border(1.dp, Accent500, RoundedCornerShape(6.dp))
-                        .background(if (filter.activeCount > 0) Accent100 else White, RoundedCornerShape(6.dp))
+                        .size(48.dp)
+                        .background(White, RoundedCornerShape(8.dp))
+                        .border(1.5.dp, Accent500, RoundedCornerShape(8.dp))
                         .clickable(onClick = onOpenFilters),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(FilterIcon, contentDescription = "Filtros", tint = Accent500, modifier = Modifier.size(20.dp))
+                    FilterBarsIcon(
+                        modifier = Modifier.size(20.dp),
+                        tint = Accent500
+                    )
                 }
             }
-            ActiveFilterChips(filter, currencySymbol, onFilterChange)
+
+            // Píldoras de Filtros Activos
+            ActiveFilterChips(
+                filter = filter,
+                symbol = currencySymbol,
+                onOpenFilters = onOpenFilters,
+                onChange = onFilterChange
+            )
         }
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Ink200))
+
+        // Línea divisora sutil
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Ink200)
+        )
     }
 }
 
 @Composable
-private fun ActiveFilterChips(filter: HistoryFilter, symbol: String, onChange: (HistoryFilter) -> Unit) {
+private fun ActiveFilterChips(
+    filter: HistoryFilter,
+    symbol: String,
+    onOpenFilters: () -> Unit,
+    onChange: (HistoryFilter) -> Unit
+) {
     if (filter.activeCount == 0) return
+
     Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         if (filter.hasDates) {
             val (monthStart, monthEnd) = monthRange(System.currentTimeMillis())
             val label = if (filter.dateFrom == monthStart && filter.dateTo == monthEnd) "Este mes"
             else "${filter.dateFrom?.let(::formatDate) ?: "…"} – ${filter.dateTo?.let(::formatDate) ?: "…"}"
-            RemovableChip(label, solid = true) { onChange(filter.copy(dateFrom = null, dateTo = null)) }
+            RemovableFilterChip(
+                label = label,
+                solid = true,
+                onRemove = { onChange(filter.copy(dateFrom = null, dateTo = null)) }
+            )
         }
         if (filter.hasType) {
-            RemovableChip(filter.type.label, solid = false) { onChange(filter.copy(type = com.udb.mifinanza.data.TypeFilter.AMBOS)) }
+            RemovableFilterChip(
+                label = filter.type.label,
+                solid = false,
+                onRemove = { onChange(filter.copy(type = TypeFilter.AMBOS)) }
+            )
         }
         if (filter.hasCategories) {
             val label = if (filter.categories.size == 1) filter.categories.first() else "${filter.categories.size} categorías"
-            RemovableChip(label, solid = false) { onChange(filter.copy(categories = emptySet())) }
+            RemovableFilterChip(
+                label = label,
+                solid = false,
+                onRemove = { onChange(filter.copy(categories = emptySet())) }
+            )
         }
         if (filter.hasAmounts) {
             val min = filter.minAmount?.let { formatMoney(it, symbol, 0) }
@@ -319,81 +454,123 @@ private fun ActiveFilterChips(filter: HistoryFilter, symbol: String, onChange: (
                 min != null -> "≥ $min"
                 else -> "≤ $max"
             }
-            RemovableChip(label, solid = false) { onChange(filter.copy(minAmount = null, maxAmount = null)) }
+            RemovableFilterChip(
+                label = label,
+                solid = false,
+                onRemove = { onChange(filter.copy(minAmount = null, maxAmount = null)) }
+            )
         }
         if (filter.activeCount > 1) {
-            Text(
-                "${filter.activeCount} filtros",
-                fontFamily = Manrope,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 11.5.sp,
-                color = Ink500,
+            Box(
                 modifier = Modifier
+                    .background(White, CircleShape)
                     .border(1.dp, Ink200, CircleShape)
-                    .padding(horizontal = 11.dp, vertical = 6.dp)
+                    .clickable(onClick = onOpenFilters)
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "${filter.activeCount} filtros",
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.5.sp,
+                    color = Ink600
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemovableFilterChip(
+    label: String,
+    solid: Boolean,
+    onRemove: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .background(
+                if (solid) Accent500 else Color(0xFFE2ECF5),
+                CircleShape
+            )
+            .clickable(onClick = onRemove)
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = label,
+                fontFamily = Manrope,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.5.sp,
+                color = if (solid) White else Accent700
+            )
+            Text(
+                text = "×",
+                fontFamily = Manrope,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = if (solid) White else Accent700
             )
         }
     }
 }
 
 @Composable
-private fun RemovableChip(label: String, solid: Boolean, onRemove: () -> Unit) {
-    Text(
-        "$label ×",
-        fontFamily = Manrope,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 11.5.sp,
-        color = if (solid) White else Accent700,
-        maxLines = 1,
-        modifier = Modifier
-            .background(if (solid) Accent500 else Accent100, CircleShape)
-            .clickable(onClick = onRemove)
-            .padding(horizontal = 11.dp, vertical = 6.dp)
-    )
-}
-
-@Composable
-private fun MovementRow(movement: Movement, symbol: String, onClick: () -> Unit) {
+private fun MovementCard(movement: Movement, symbol: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(White, RoundedCornerShape(10.dp))
-            .border(BorderStroke(1.dp, Ink200), RoundedCornerShape(10.dp))
+            .background(White, RoundedCornerShape(12.dp))
+            .border(BorderStroke(1.dp, Ink200), RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f).padding(end = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
             Text(
-                movement.title,
+                text = movement.title,
                 fontFamily = Manrope,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
                 color = Ink950,
                 maxLines = 1
             )
             Text(
-                listOf(movement.category, movement.paymentMethod).filter { it.isNotBlank() }.joinToString(" · "),
+                text = listOf(movement.category, movement.paymentMethod).filter { it.isNotBlank() }.joinToString(" · "),
                 fontFamily = Manrope,
-                fontSize = 11.5.sp,
+                fontSize = 12.5.sp,
                 color = Ink500,
                 maxLines = 1
             )
         }
+
+        val amountColor = if (movement.type == MovementType.INGRESO) Success500 else Danger500
         Text(
-            movement.displayAmount(symbol),
+            text = movement.displayAmount(symbol),
             fontFamily = Manrope,
             fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = if (movement.type == MovementType.INGRESO) Success500 else Danger500
+            fontSize = 15.sp,
+            color = amountColor
         )
     }
 }
 
 private val PreviewMovements = listOf(
-    Movement(id = "1", title = "Supermercado Santa María", category = "Alimentación", amount = 42.80, paymentMethod = "Efectivo"),
-    Movement(id = "2", title = "Salario agosto", category = "Salario", amount = 1850.0, type = MovementType.INGRESO, paymentMethod = "Transferencia")
+    Movement(id = "1", title = "Supermercado Santa María", category = "Alimentación", amount = 42.80, type = MovementType.GASTO, paymentMethod = "Efectivo", timestamp = 1786521600000L),
+    Movement(id = "2", title = "Cine Multiplaza", category = "Ocio", amount = 18.00, type = MovementType.GASTO, paymentMethod = "Tarjeta débito", timestamp = 1786435200000L),
+    Movement(id = "3", title = "Bus urbano", category = "Transporte", amount = 13.20, type = MovementType.GASTO, paymentMethod = "Efectivo", timestamp = 1786435200000L),
+    Movement(id = "4", title = "Salario agosto", category = "Salario", amount = 1850.00, type = MovementType.INGRESO, paymentMethod = "Transferencia", timestamp = 1786348800000L),
+    Movement(id = "5", title = "Internet fibra 100MB", category = "Servicios", amount = 45.00, type = MovementType.GASTO, paymentMethod = "Débito automático", timestamp = 1786176000000L)
 )
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 800)
@@ -401,13 +578,5 @@ private val PreviewMovements = listOf(
 private fun HistoryPreview() {
     MiFinanzaTheme {
         HistoryScreen(PreviewMovements, loaded = true, error = null, currencySymbol = "$", {}, {}, {}, {})
-    }
-}
-
-@Preview(showBackground = true, widthDp = 360, heightDp = 800)
-@Composable
-private fun HistoryEmptyPreview() {
-    MiFinanzaTheme {
-        HistoryScreen(emptyList(), loaded = true, error = null, currencySymbol = "$", {}, {}, {}, {})
     }
 }

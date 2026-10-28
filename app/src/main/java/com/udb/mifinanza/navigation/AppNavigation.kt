@@ -128,7 +128,7 @@ fun AppNavigation() {
                     when (tab) {
                         NavTab.Inicio -> { /* Ya estamos en Inicio */ }
                         NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
-                        NavTab.Movimientos -> { /* Vista de movimientos */ }
+                        NavTab.Movimientos -> navController.navigate(Routes.HISTORY)
                         NavTab.Historial -> navController.navigate(Routes.HISTORY)
                     }
                 },
@@ -177,7 +177,7 @@ fun AppNavigation() {
                             popUpTo(Routes.HOME) { inclusive = true }
                         }
                         NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
-                        NavTab.Movimientos -> { /* Ya en movimientos */ }
+                        NavTab.Movimientos -> navController.navigate(Routes.HISTORY)
                         NavTab.Historial -> navController.navigate(Routes.HISTORY)
                     }
                 }
@@ -195,7 +195,7 @@ fun AppNavigation() {
                             popUpTo(Routes.HOME) { inclusive = true }
                         }
                         NavTab.Presupuestos -> { /* Ya en Presupuestos */ }
-                        NavTab.Movimientos -> navController.navigate(Routes.HOME)
+                        NavTab.Movimientos -> navController.navigate(Routes.HISTORY)
                         NavTab.Historial -> navController.navigate(Routes.HISTORY)
                     }
                 },
@@ -248,7 +248,7 @@ fun AppNavigation() {
                             popUpTo(Routes.HOME) { inclusive = true }
                         }
                         NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
-                        NavTab.Movimientos -> navController.navigate(Routes.HOME)
+                        NavTab.Movimientos -> { /* Ya en Historial */ }
                         NavTab.Historial -> { /* Ya en Historial */ }
                     }
                 }
@@ -271,7 +271,7 @@ fun AppNavigation() {
                             popUpTo(Routes.HOME) { inclusive = true }
                         }
                         NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
-                        NavTab.Movimientos -> navController.navigate(Routes.HOME)
+                        NavTab.Movimientos -> navController.navigate(Routes.HISTORY)
                         NavTab.Historial -> navController.navigate(Routes.HISTORY)
                     }
                 },

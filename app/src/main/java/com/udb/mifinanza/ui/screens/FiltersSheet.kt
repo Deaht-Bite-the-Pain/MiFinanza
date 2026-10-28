@@ -5,10 +5,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -37,9 +37,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -56,7 +56,6 @@ import com.udb.mifinanza.data.formatDate
 import com.udb.mifinanza.data.startOfDay
 import com.udb.mifinanza.ui.theme.Accent500
 import com.udb.mifinanza.ui.theme.Ink200
-import com.udb.mifinanza.ui.theme.Ink300
 import com.udb.mifinanza.ui.theme.Ink400
 import com.udb.mifinanza.ui.theme.Ink500
 import com.udb.mifinanza.ui.theme.Ink600
@@ -66,9 +65,21 @@ import com.udb.mifinanza.ui.theme.White
 import java.util.Calendar
 import java.util.TimeZone
 
-private val AllCategories = (ExpenseCategories + IncomeCategories).distinct()
+private val AllCategories = listOf(
+    "Alimentación",
+    "Transporte",
+    "Ocio",
+    "Servicios",
+    "Salud",
+    "Salario",
+    "Educación",
+    "Hogar",
+    "Ventas",
+    "Beca",
+    "Otros"
+)
 
-/** Hoja inferior con los filtros avanzados del historial (diseño 12). */
+/** Hoja inferior con los filtros avanzados del historial */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FiltersSheet(
@@ -84,19 +95,21 @@ fun FiltersSheet(
     var maxText by remember { mutableStateOf(initial.maxAmount?.let(::amountToText).orEmpty()) }
     var pickingDate by remember { mutableStateOf<DateField?>(null) }
 
-    // El contador se calcula en vivo con lo que el usuario va marcando.
-    val resultCount = remember(draft, movements, query) { movements.filterHistory(query, draft.normalized()).size }
+    // El contador de resultados se calcula en vivo según lo que el usuario va modificando
+    val resultCount = remember(draft, movements, query) {
+        movements.filterHistory(query, draft.normalized()).size
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = White,
-        shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         dragHandle = {
             Box(
                 modifier = Modifier
-                    .padding(top = 12.dp, bottom = 4.dp)
-                    .width(36.dp)
+                    .padding(top = 12.dp, bottom = 6.dp)
+                    .width(42.dp)
                     .height(4.dp)
                     .background(Ink200, CircleShape)
             )
@@ -106,20 +119,28 @@ fun FiltersSheet(
             modifier = Modifier
                 .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, bottom = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
+            // Encabezado: "Filtros" y "LIMPIAR TODO"
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Filtros", fontFamily = Manrope, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = Ink950)
                 Text(
-                    "LIMPIAR TODO",
+                    text = "Filtros",
                     fontFamily = Manrope,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
+                    fontSize = 20.sp,
+                    color = Ink950
+                )
+                Text(
+                    text = "LIMPIAR TODO",
+                    fontFamily = Manrope,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.5.sp,
+                    letterSpacing = 0.5.sp,
                     color = Accent500,
                     modifier = Modifier.clickable {
                         draft = HistoryFilter()
@@ -129,101 +150,141 @@ fun FiltersSheet(
                 )
             }
 
+            // Sección 1: TIPO
             Section("TIPO") {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TypeFilter.entries.forEach { type ->
-                        SelectableChip(type.label, selected = draft.type == type) { draft = draft.copy(type = type) }
+                        SelectableChip(
+                            label = type.label,
+                            selected = draft.type == type,
+                            onClick = { draft = draft.copy(type = type) }
+                        )
                     }
                 }
             }
 
+            // Sección 2: RANGO DE FECHAS
             Section("RANGO DE FECHAS") {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     DateBox(
                         value = draft.dateFrom,
                         placeholder = "Desde",
                         modifier = Modifier.weight(1f),
-                        onClick = { pickingDate = DateField.From },
-                        onClear = { draft = draft.copy(dateFrom = null) }
+                        onClick = { pickingDate = DateField.From }
                     )
                     DateBox(
                         value = draft.dateTo,
                         placeholder = "Hasta",
                         modifier = Modifier.weight(1f),
-                        onClick = { pickingDate = DateField.To },
-                        onClear = { draft = draft.copy(dateTo = null) }
+                        onClick = { pickingDate = DateField.To }
                     )
                 }
             }
 
+            // Sección 3: CATEGORÍAS
             Section("CATEGORÍAS") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     AllCategories.forEach { category ->
                         val selected = category in draft.categories
-                        SelectableChip(category, selected) {
-                            draft = draft.copy(categories = if (selected) draft.categories - category else draft.categories + category)
-                        }
+                        SelectableChip(
+                            label = category,
+                            selected = selected,
+                            onClick = {
+                                draft = draft.copy(
+                                    categories = if (selected) draft.categories - category else draft.categories + category
+                                )
+                            }
+                        )
                     }
                 }
             }
 
+            // Sección 4: MONTO
             Section("MONTO") {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     AmountBox(
                         symbol = currencySymbol,
                         value = minText,
-                        placeholder = "Mínimo",
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        minText = filterAmountInput(it, minText)
-                        draft = draft.copy(minAmount = minText.toDoubleOrNull())
-                    }
-                    Text("a", fontFamily = Manrope, fontSize = 12.sp, color = Ink500)
+                        placeholder = "10.00",
+                        modifier = Modifier.weight(1f),
+                        onValueChange = {
+                            minText = filterAmountInput(it, minText)
+                            draft = draft.copy(minAmount = minText.toDoubleOrNull())
+                        }
+                    )
+                    Text(
+                        text = "a",
+                        fontFamily = Manrope,
+                        fontSize = 13.5.sp,
+                        color = Ink500
+                    )
                     AmountBox(
                         symbol = currencySymbol,
                         value = maxText,
-                        placeholder = "Máximo",
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        maxText = filterAmountInput(it, maxText)
-                        draft = draft.copy(maxAmount = maxText.toDoubleOrNull())
-                    }
+                        placeholder = "500.00",
+                        modifier = Modifier.weight(1f),
+                        onValueChange = {
+                            maxText = filterAmountInput(it, maxText)
+                            draft = draft.copy(maxAmount = maxText.toDoubleOrNull())
+                        }
+                    )
                 }
             }
 
+            // Botón Principal: Aplicar filtros (X resultados)
             Button(
                 onClick = { onApply(draft.normalized()) },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Accent500, contentColor = White)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Accent500,
+                    contentColor = White
+                )
             ) {
                 Text(
-                    "Aplicar filtros ($resultCount ${if (resultCount == 1) "resultado" else "resultados"})",
+                    text = "Aplicar filtros ($resultCount ${if (resultCount == 1) "resultado" else "resultados"})",
                     fontFamily = Manrope,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 15.sp,
+                    color = White
                 )
             }
         }
     }
 
+    // Selector de Fecha emergente
     pickingDate?.let { field ->
         val current = if (field == DateField.From) draft.dateFrom else draft.dateTo
-        val pickerState = rememberDatePickerState(initialSelectedDateMillis = localToUtcDay(current ?: System.currentTimeMillis()))
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = localToUtcDay(current ?: System.currentTimeMillis())
+        )
         DatePickerDialog(
             onDismissRequest = { pickingDate = null },
             confirmButton = {
                 TextButton(onClick = {
                     pickerState.selectedDateMillis?.let { utc ->
                         val local = utcDayToLocal(utc)
-                        draft = if (field == DateField.From) draft.copy(dateFrom = startOfDay(local))
-                        else draft.copy(dateTo = endOfDay(local))
+                        draft = if (field == DateField.From) {
+                            draft.copy(dateFrom = startOfDay(local))
+                        } else {
+                            draft.copy(dateTo = endOfDay(local))
+                        }
                     }
                     pickingDate = null
                 }) { Text("Aceptar", color = Accent500) }
             },
             dismissButton = {
-                TextButton(onClick = { pickingDate = null }) { Text("Cancelar", color = Ink600) }
+                TextButton(onClick = { pickingDate = null }) {
+                    Text("Cancelar", color = Ink600)
+                }
             }
         ) {
             DatePicker(state = pickerState)
@@ -235,32 +296,48 @@ private enum class DateField { From, To }
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            title,
-            fontFamily = FontFamily.Monospace,
+            text = title,
+            fontFamily = Manrope,
             fontWeight = FontWeight.Bold,
-            fontSize = 10.5.sp,
-            letterSpacing = 0.6.sp,
-            color = Ink500
+            fontSize = 11.5.sp,
+            letterSpacing = 0.8.sp,
+            color = Color(0xFF385773)
         )
         content()
     }
 }
 
 @Composable
-private fun SelectableChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Text(
-        label,
-        fontFamily = Manrope,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 12.sp,
-        color = if (selected) White else Ink600,
+private fun SelectableChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
         modifier = Modifier
-            .then(if (selected) Modifier.background(Accent500, CircleShape) else Modifier.border(1.dp, Ink300, CircleShape))
+            .background(
+                if (selected) Accent500 else White,
+                CircleShape
+            )
+            .then(
+                if (!selected) {
+                    Modifier.border(1.dp, Ink200, CircleShape)
+                } else Modifier
+            )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-    )
+            .padding(horizontal = 18.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            fontFamily = Manrope,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.5.sp,
+            color = if (selected) White else Color(0xFF24425F)
+        )
+    }
 }
 
 @Composable
@@ -268,28 +345,24 @@ private fun DateBox(
     value: Long?,
     placeholder: String,
     modifier: Modifier,
-    onClick: () -> Unit,
-    onClear: () -> Unit
+    onClick: () -> Unit
 ) {
-    Row(
+    Box(
         modifier = modifier
-            .height(44.dp)
-            .border(1.dp, Ink300, RoundedCornerShape(6.dp))
+            .height(48.dp)
+            .background(White, RoundedCornerShape(8.dp))
+            .border(1.dp, Ink200, RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
         Text(
-            value?.let(::formatDate) ?: placeholder,
-            fontFamily = FontFamily.Monospace,
+            text = value?.let(::formatDate) ?: placeholder,
+            fontFamily = Manrope,
             fontWeight = FontWeight.Medium,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = if (value != null) Ink950 else Ink400
         )
-        if (value != null) {
-            Text("×", fontSize = 18.sp, color = Ink500, modifier = Modifier.clickable(onClick = onClear))
-        }
     }
 }
 
@@ -303,20 +376,38 @@ private fun AmountBox(
 ) {
     Row(
         modifier = modifier
-            .height(44.dp)
-            .border(1.dp, Ink300, RoundedCornerShape(6.dp))
-            .padding(horizontal = 12.dp),
+            .height(48.dp)
+            .background(White, RoundedCornerShape(8.dp))
+            .border(1.dp, Ink200, RoundedCornerShape(8.dp))
+            .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text(symbol, fontFamily = Manrope, fontSize = 13.5.sp, color = Ink500)
+        Text(
+            text = "$symbol ",
+            fontFamily = Manrope,
+            fontSize = 14.sp,
+            color = Ink950
+        )
         Box(modifier = Modifier.weight(1f)) {
-            if (value.isEmpty()) Text(placeholder, fontFamily = Manrope, fontSize = 13.5.sp, color = Ink400, maxLines = 1)
+            if (value.isEmpty()) {
+                Text(
+                    text = placeholder,
+                    fontFamily = Manrope,
+                    fontSize = 14.sp,
+                    color = Ink400,
+                    maxLines = 1
+                )
+            }
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                textStyle = TextStyle(fontFamily = Manrope, fontSize = 13.5.sp, color = Ink950),
+                textStyle = TextStyle(
+                    fontFamily = Manrope,
+                    fontSize = 14.sp,
+                    color = Ink950
+                ),
                 cursorBrush = SolidColor(Accent500),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
@@ -326,7 +417,7 @@ private fun AmountBox(
 }
 
 private fun amountToText(amount: Double): String =
-    if (amount % 1.0 == 0.0) amount.toLong().toString() else amount.toString()
+    if (amount % 1.0 == 0.0) String.format(java.util.Locale.US, "%.2f", amount) else amount.toString()
 
 /** El DatePicker trabaja con medianoche UTC; convierte una fecha local a ese formato. */
 private fun localToUtcDay(localMillis: Long): Long {
