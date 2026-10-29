@@ -1,4 +1,4 @@
-﻿package com.udb.mifinanza.ui.screens
+package com.udb.mifinanza.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -37,14 +37,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.udb.mifinanza.data.CategoryBudget
 import com.udb.mifinanza.data.Movement
 import com.udb.mifinanza.data.MovementType
+import com.udb.mifinanza.data.budgetPeriodRange
 import com.udb.mifinanza.ui.components.BottomNavBar
+import com.udb.mifinanza.ui.components.ErrorBanner
 import com.udb.mifinanza.ui.components.NavTab
 import com.udb.mifinanza.ui.components.StatusBarIcons
 import com.udb.mifinanza.ui.theme.Accent100
@@ -72,7 +73,9 @@ fun MovementDetailScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onTabSelected: (NavTab) -> Unit
+    onTabSelected: (NavTab) -> Unit,
+    isDeleting: Boolean = false,
+    errorMessage: String? = null
 ) {
     StatusBarIcons(dark = true)
 
@@ -82,6 +85,7 @@ fun MovementDetailScreen(
     // Un gasto solo afecta un presupuesto si el usuario creó uno para esa categoría.
     val budgetText = when {
         budget == null -> "Sin presupuesto"
+        movement.timestamp !in budgetPeriodRange(budget.period).let { it.first..it.second } -> "Periodo anterior"
         else -> "${budget.category} · ${budget.percentage}%"
     }
 
@@ -92,7 +96,6 @@ fun MovementDetailScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        // Barra Superior: Flecha Atrás y Título "Detalle"
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -122,7 +125,6 @@ fun MovementDetailScreen(
             )
         }
 
-        // Contenido Scrolleable
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -130,7 +132,8 @@ fun MovementDetailScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Tarjeta 1: Badge Gasto/Ingreso, Monto y Título
+            errorMessage?.let { ErrorBanner(it) }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -139,7 +142,6 @@ fun MovementDetailScreen(
                     .padding(20.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Badge GASTO / INGRESO
                     Box(
                         modifier = Modifier
                             .background(
@@ -157,7 +159,6 @@ fun MovementDetailScreen(
                         )
                     }
 
-                    // Monto
                     Text(
                         movement.displayAmount(currencySymbol),
                         fontFamily = Manrope,
@@ -166,7 +167,6 @@ fun MovementDetailScreen(
                         color = Ink950
                     )
 
-                    // Nombre / Título
                     Text(
                         movement.title,
                         fontFamily = Manrope,
@@ -177,7 +177,6 @@ fun MovementDetailScreen(
                 }
             }
 
-            // Tarjeta 2: Tabla de Datos (Categoría, Fecha, Método de Pago, Presupuesto)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -199,7 +198,6 @@ fun MovementDetailScreen(
                 }
             }
 
-            // Tarjeta 3: DESCRIPCIÓN y Etiquetas (solo si el usuario agregó alguna)
             if (movement.description.isNotEmpty() || movement.tags.isNotEmpty()) Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -252,7 +250,6 @@ fun MovementDetailScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Botones de Acción: Eliminar y Editar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -262,6 +259,7 @@ fun MovementDetailScreen(
         ) {
             OutlinedButton(
                 onClick = { showDeleteConfirmDialog = true },
+                enabled = !isDeleting,
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp),
@@ -270,7 +268,7 @@ fun MovementDetailScreen(
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = White)
             ) {
                 Text(
-                    "Eliminar",
+                    if (isDeleting) "Eliminando..." else "Eliminar",
                     fontFamily = Manrope,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
@@ -296,10 +294,8 @@ fun MovementDetailScreen(
             }
         }
 
-        // Barra de Navegación Inferior (Pestaña "Movimientos" activa)
         BottomNavBar(active = NavTab.Movimientos, onSelect = onTabSelected)
 
-        // Diálogo de Confirmación para Eliminar
         if (showDeleteConfirmDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteConfirmDialog = false },

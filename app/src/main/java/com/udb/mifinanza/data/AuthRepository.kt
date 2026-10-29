@@ -3,6 +3,7 @@ package com.udb.mifinanza.data
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
 
 class AuthRepository(
@@ -36,6 +37,17 @@ class AuthRepository(
         val data = snapshot.data
         if (data != null) UserProfile.fromMap(data)
         else UserProfile(name = user.displayName.orEmpty(), email = user.email.orEmpty())
+    }
+
+    /** Guarda los datos editables del perfil; el correo no cambia porque es el de la cuenta. */
+    suspend fun saveProfile(profile: UserProfile): Result<UserProfile> = runCatching {
+        val user = auth.currentUser ?: error("Sin sesión")
+        val saved = profile.copy(email = user.email.orEmpty())
+        db.collection(USERS).document(user.uid).set(saved.toMap(), SetOptions.merge()).await()
+        if (user.displayName != saved.name) {
+            user.updateProfile(userProfileChangeRequest { displayName = saved.name }).await()
+        }
+        saved
     }
 
     fun signOut() = auth.signOut()

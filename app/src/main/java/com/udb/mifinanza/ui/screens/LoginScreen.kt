@@ -30,10 +30,9 @@ import androidx.compose.ui.unit.sp
 import com.udb.mifinanza.ui.components.CheckboxRow
 import com.udb.mifinanza.ui.components.ErrorBanner
 import com.udb.mifinanza.ui.components.LabeledTextField
-import com.udb.mifinanza.ui.components.LogoPlaceholder
+import com.udb.mifinanza.ui.components.AppLogo
 import com.udb.mifinanza.ui.components.PrimaryButton
 import com.udb.mifinanza.ui.theme.Accent500
-import com.udb.mifinanza.ui.theme.Ink300
 import com.udb.mifinanza.ui.theme.Ink50
 import com.udb.mifinanza.ui.theme.Ink600
 import com.udb.mifinanza.ui.theme.Ink950
@@ -68,7 +67,7 @@ fun LoginScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LogoPlaceholder(size = 56.dp, cornerRadius = 16.dp, color = Ink300)
+                AppLogo(size = 56.dp, cornerRadius = 16.dp)
                 Text(
                     "Bienvenida de nuevo",
                     fontFamily = Manrope,

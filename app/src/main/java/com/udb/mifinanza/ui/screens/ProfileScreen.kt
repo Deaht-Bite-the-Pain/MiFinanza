@@ -23,7 +23,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -55,6 +54,7 @@ fun ProfileScreen(
     onOpenNews: () -> Unit,
     onLogout: () -> Unit,
     onTabSelected: (NavTab) -> Unit,
+    onEditProfile: () -> Unit = {},
     errorMessage: String? = null
 ) {
     StatusBarIcons(dark = true)
@@ -145,24 +145,8 @@ fun ProfileScreen(
                     "Semestre" to displaySemester
                 )
             )
-            Card(modifier = Modifier.clickable(onClick = onOpenNews)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Noticias académicas",
-                        fontFamily = Manrope,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.5.sp,
-                        color = Ink950
-                    )
-                    Text("→", color = Ink500, fontSize = 14.sp)
-                }
-            }
+            LinkCard("Editar perfil", onEditProfile)
+            LinkCard("Noticias académicas", onOpenNews)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -196,6 +180,22 @@ private fun Card(modifier: Modifier = Modifier, content: @Composable () -> Unit)
             .background(White, RoundedCornerShape(12.dp))
             .border(1.dp, Ink200, RoundedCornerShape(12.dp))
     ) { content() }
+}
+
+@Composable
+private fun LinkCard(text: String, onClick: () -> Unit) {
+    Card(modifier = Modifier.clickable(onClick = onClick)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp, color = Ink950)
+            Text("→", color = Ink500, fontSize = 14.sp)
+        }
+    }
 }
 
 @Composable

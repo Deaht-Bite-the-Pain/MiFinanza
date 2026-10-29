@@ -24,10 +24,7 @@ import com.udb.mifinanza.ui.theme.Ink600
 import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
 
-/**
- * Estado vacío reutilizable (diseño 16): ícono, título, mensaje y una acción opcional.
- * Sirve para "sin datos", "sin resultados de búsqueda" o "sin conexión".
- */
+/** Estado vacío con ícono, título, mensaje y una acción opcional ("sin datos", "sin resultados"...). */
 @Composable
 fun EmptyState(
     icon: ImageVector,

@@ -4,20 +4,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.udb.mifinanza.data.UserProfile
-import com.udb.mifinanza.ui.auth.AuthViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import com.udb.mifinanza.data.CategoryBudget
 import com.udb.mifinanza.data.Movement
+import com.udb.mifinanza.data.UserProfile
+import com.udb.mifinanza.ui.auth.AuthViewModel
 import com.udb.mifinanza.ui.components.NavTab
 import com.udb.mifinanza.ui.finance.FinanceViewModel
+import com.udb.mifinanza.ui.news.NewsViewModel
 import com.udb.mifinanza.ui.screens.BudgetScreen
+import com.udb.mifinanza.ui.screens.EditProfileScreen
 import com.udb.mifinanza.ui.screens.ForgotPasswordScreen
 import com.udb.mifinanza.ui.screens.HistoryScreen
 import com.udb.mifinanza.ui.screens.HomeScreen
@@ -25,8 +27,10 @@ import com.udb.mifinanza.ui.screens.LoginScreen
 import com.udb.mifinanza.ui.screens.MovementDetailScreen
 import com.udb.mifinanza.ui.screens.NewBudgetScreen
 import com.udb.mifinanza.ui.screens.NewMovementScreen
+import com.udb.mifinanza.ui.screens.NewsScreen
 import com.udb.mifinanza.ui.screens.ProfileScreen
 import com.udb.mifinanza.ui.screens.RegisterScreen
+import com.udb.mifinanza.ui.screens.ReportsScreen
 import com.udb.mifinanza.ui.screens.WelcomeScreen
 
 object Routes {
@@ -41,6 +45,9 @@ object Routes {
     const val BUDGETS = "budgets"
     const val NEW_BUDGET = "new_budget"
     const val HISTORY = "history"
+    const val REPORTS = "reports"
+    const val NEWS = "news"
+    const val EDIT_PROFILE = "edit_profile"
 }
 
 @Composable
@@ -48,6 +55,7 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
     val financeViewModel: FinanceViewModel = viewModel()
+    val newsViewModel: NewsViewModel = viewModel()
     val auth by authViewModel.state.collectAsState()
     val finance by financeViewModel.state.collectAsState()
     val currencySymbol = (auth.profile ?: UserProfile()).currencySymbol
@@ -57,6 +65,20 @@ fun AppNavigation() {
     var selectedBudget by remember { mutableStateOf<CategoryBudget?>(null) }
 
     fun goHome() = navController.navigate(Routes.HOME) { popUpTo(0) }
+
+    // Las pestañas no se apilan: desde cualquiera, "atrás" regresa a Inicio.
+    fun openTab(tab: NavTab) {
+        val route = when (tab) {
+            NavTab.Inicio -> Routes.HOME
+            NavTab.Presupuestos -> Routes.BUDGETS
+            NavTab.Movimientos, NavTab.Historial -> Routes.HISTORY
+        }
+        if (navController.currentDestination?.route == route) return
+        navController.navigate(route) {
+            popUpTo(Routes.HOME)
+            launchSingleTop = true
+        }
+    }
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable(Routes.WELCOME) {
@@ -124,29 +146,34 @@ fun AppNavigation() {
                     selectedMovement = movement
                     navController.navigate(Routes.MOVEMENT_DETAIL)
                 },
-                onTabSelected = { tab ->
-                    when (tab) {
-                        NavTab.Inicio -> { /* Ya estamos en Inicio */ }
-                        NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
-                        NavTab.Movimientos -> navController.navigate(Routes.HISTORY)
-                        NavTab.Historial -> navController.navigate(Routes.HISTORY)
-                    }
-                },
+                onTabSelected = ::openTab,
+                onOpenReports = { navController.navigate(Routes.REPORTS) },
                 financeViewModel = financeViewModel
             )
         }
+        composable(Routes.REPORTS) {
+            LaunchedEffect(Unit) { financeViewModel.loadSummary() }
+            ReportsScreen(
+                movements = finance.summary.allMovements,
+                loaded = finance.loaded,
+                error = finance.error,
+                currencySymbol = currencySymbol,
+                onBack = { navController.popBackStack() }
+            )
+        }
         composable(Routes.NEW_MOVEMENT) {
+            LaunchedEffect(Unit) { financeViewModel.clearError() }
             NewMovementScreen(
                 initialMovement = selectedMovement,
                 currencySymbol = currencySymbol,
-                isSaving = finance.isLoading,
+                isSaving = finance.isSaving,
                 errorMessage = finance.error,
                 onCancel = { navController.popBackStack() },
                 onSave = { movement ->
                     financeViewModel.saveMovement(movement) {
-                        // Al editar se vuelve a Inicio para no mostrar el detalle con datos viejos.
-                        if (movement.id.isEmpty()) navController.popBackStack()
-                        else navController.popBackStack(Routes.HOME, inclusive = false)
+                        // Al editar, el detalle vuelve a mostrarse con los datos recién guardados.
+                        if (movement.id.isNotEmpty()) selectedMovement = movement
+                        navController.popBackStack()
                     }
                 }
             )
@@ -158,47 +185,28 @@ fun AppNavigation() {
                 LaunchedEffect(Unit) { navController.popBackStack(Routes.HOME, inclusive = false) }
                 return@composable
             }
+            LaunchedEffect(Unit) { financeViewModel.clearError() }
             MovementDetailScreen(
                 movement = mov,
                 currencySymbol = currencySymbol,
                 budget = finance.summary.budgets.find { it.category.equals(mov.category, ignoreCase = true) },
+                isDeleting = finance.isSaving,
+                errorMessage = finance.error,
                 onBack = { navController.popBackStack() },
-                onEdit = {
-                    navController.navigate(Routes.NEW_MOVEMENT)
-                },
+                onEdit = { navController.navigate(Routes.NEW_MOVEMENT) },
                 onDelete = {
                     financeViewModel.deleteMovement(mov.id) {
                         navController.popBackStack()
                     }
                 },
-                onTabSelected = { tab ->
-                    when (tab) {
-                        NavTab.Inicio -> navController.navigate(Routes.HOME) {
-                            popUpTo(Routes.HOME) { inclusive = true }
-                        }
-                        NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
-                        NavTab.Movimientos -> navController.navigate(Routes.HISTORY)
-                        NavTab.Historial -> navController.navigate(Routes.HISTORY)
-                    }
-                }
+                onTabSelected = ::openTab
             )
         }
         composable(Routes.BUDGETS) {
-            LaunchedEffect(Unit) {
-                financeViewModel.loadSummary()
-            }
+            LaunchedEffect(Unit) { financeViewModel.loadSummary() }
             BudgetScreen(
                 currencySymbol = currencySymbol,
-                onTabSelected = { tab ->
-                    when (tab) {
-                        NavTab.Inicio -> navController.navigate(Routes.HOME) {
-                            popUpTo(Routes.HOME) { inclusive = true }
-                        }
-                        NavTab.Presupuestos -> { /* Ya en Presupuestos */ }
-                        NavTab.Movimientos -> navController.navigate(Routes.HISTORY)
-                        NavTab.Historial -> navController.navigate(Routes.HISTORY)
-                    }
-                },
+                onTabSelected = ::openTab,
                 onAddBudget = {
                     selectedBudget = null
                     navController.navigate(Routes.NEW_BUDGET)
@@ -211,16 +219,22 @@ fun AppNavigation() {
             )
         }
         composable(Routes.NEW_BUDGET) {
+            LaunchedEffect(Unit) { financeViewModel.clearError() }
             NewBudgetScreen(
                 initialBudget = selectedBudget,
                 currencySymbol = currencySymbol,
                 movements = finance.summary.allMovements,
                 existingBudgetCategories = finance.summary.budgets.map { it.category },
-                isSaving = finance.isLoading,
+                isSaving = finance.isSaving,
                 errorMessage = finance.error,
                 onCancel = { navController.popBackStack() },
                 onSave = { budget ->
                     financeViewModel.saveBudget(budget) {
+                        navController.popBackStack()
+                    }
+                },
+                onDelete = { budget ->
+                    financeViewModel.deleteBudget(budget.id) {
                         navController.popBackStack()
                     }
                 }
@@ -242,16 +256,7 @@ fun AppNavigation() {
                     navController.navigate(Routes.NEW_MOVEMENT)
                 },
                 onRetry = { financeViewModel.loadSummary() },
-                onTabSelected = { tab ->
-                    when (tab) {
-                        NavTab.Inicio -> navController.navigate(Routes.HOME) {
-                            popUpTo(Routes.HOME) { inclusive = true }
-                        }
-                        NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
-                        NavTab.Movimientos -> { /* Ya en Historial */ }
-                        NavTab.Historial -> { /* Ya en Historial */ }
-                    }
-                }
+                onTabSelected = ::openTab
             )
         }
         composable(Routes.PROFILE) {
@@ -259,23 +264,39 @@ fun AppNavigation() {
             ProfileScreen(
                 profile = auth.profile ?: UserProfile(),
                 onBack = { navController.popBackStack() },
-                onOpenNews = { /* TODO: noticias académicas */ },
+                onOpenNews = { navController.navigate(Routes.NEWS) },
+                onEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
                 onLogout = {
                     authViewModel.signOut()
                     financeViewModel.clear()
                     navController.navigate(Routes.WELCOME) { popUpTo(0) }
                 },
-                onTabSelected = { tab ->
-                    when (tab) {
-                        NavTab.Inicio -> navController.navigate(Routes.HOME) {
-                            popUpTo(Routes.HOME) { inclusive = true }
-                        }
-                        NavTab.Presupuestos -> navController.navigate(Routes.BUDGETS)
-                        NavTab.Movimientos -> navController.navigate(Routes.HISTORY)
-                        NavTab.Historial -> navController.navigate(Routes.HISTORY)
-                    }
-                },
+                onTabSelected = ::openTab,
                 errorMessage = auth.error
+            )
+        }
+        composable(Routes.EDIT_PROFILE) {
+            LaunchedEffect(Unit) { authViewModel.clearError() }
+            EditProfileScreen(
+                profile = auth.profile ?: UserProfile(),
+                isSaving = auth.isLoading,
+                errorMessage = auth.error,
+                onBack = { navController.popBackStack() },
+                onSave = { profile ->
+                    authViewModel.saveProfile(profile) { navController.popBackStack() }
+                }
+            )
+        }
+        composable(Routes.NEWS) {
+            val news by newsViewModel.state.collectAsState()
+            LaunchedEffect(Unit) { if (!news.loaded) newsViewModel.load() }
+            NewsScreen(
+                items = news.items,
+                loaded = news.loaded,
+                isLoading = news.isLoading,
+                error = news.error,
+                onRetry = newsViewModel::load,
+                onBack = { navController.popBackStack() }
             )
         }
     }

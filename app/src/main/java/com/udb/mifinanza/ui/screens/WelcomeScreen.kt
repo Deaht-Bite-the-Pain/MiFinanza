@@ -16,12 +16,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.udb.mifinanza.ui.components.LogoPlaceholder
+import com.udb.mifinanza.ui.components.AppLogo
 import com.udb.mifinanza.ui.components.OutlinedAppButton
 import com.udb.mifinanza.ui.components.PrimaryButton
 import com.udb.mifinanza.ui.components.StatusBarIcons
 import com.udb.mifinanza.ui.theme.Ink300
-import com.udb.mifinanza.ui.theme.Ink500
 import com.udb.mifinanza.ui.theme.Ink600
 import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
@@ -43,7 +42,7 @@ fun WelcomeScreen(onCreateAccount: () -> Unit, onHaveAccount: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)
         ) {
-            LogoPlaceholder(size = 88.dp, cornerRadius = 24.dp, color = Ink500)
+            AppLogo(size = 88.dp, cornerRadius = 24.dp)
             Text(
                 "MiFinanza",
                 fontFamily = Manrope,

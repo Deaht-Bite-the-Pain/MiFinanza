@@ -1,8 +1,10 @@
 package com.udb.mifinanza.data
 
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /** Tipo de movimiento financiero: Ingreso o Gasto */
 enum class MovementType {
@@ -57,7 +59,7 @@ data class Movement(
 ) {
     /** Fecha corta para listas: "12 ago". */
     val formattedDate: String
-        get() = SimpleDateFormat("d MMM", Locale("es", "ES")).format(Date(timestamp)).lowercase()
+        get() = SimpleDateFormat("d MMM", Locale("es", "ES")).format(Date(timestamp)).lowercase().replace(".", "")
 
     /** Fecha completa: "12/08/2026". */
     val displayFullDate: String
@@ -103,21 +105,81 @@ data class MonthlyExpenseBar(
     val isCurrentMonth: Boolean = false
 )
 
-/** Alerta del presupuesto más comprometido del mes (80 % o más de su límite). */
+/** Alerta del presupuesto más comprometido que ya pasó su umbral de aviso. */
 data class BudgetAlert(
     val category: String,
     val spent: Double,
     val limit: Double,
-    val daysRemaining: Int
+    val daysRemaining: Int,
+    val period: String = "Mensual"
 ) {
     val percentage: Int
         get() = if (limit > 0) ((spent / limit) * 100).toInt() else 0
     val isExceeded: Boolean get() = spent > limit
 }
 
+val BudgetPeriods = listOf("Mensual", "Semanal", "Anual")
+
+/** Inicio y fin del periodo en curso de un presupuesto. La semana empieza el lunes. */
+fun budgetPeriodRange(period: String, now: Long = System.currentTimeMillis()): Pair<Long, Long> {
+    val start = Calendar.getInstance().apply {
+        timeInMillis = startOfDay(now)
+        when (period) {
+            "Semanal" -> add(Calendar.DAY_OF_MONTH, -((get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7))
+            "Anual" -> set(Calendar.DAY_OF_YEAR, 1)
+            else -> set(Calendar.DAY_OF_MONTH, 1)
+        }
+    }
+    val end = (start.clone() as Calendar).apply {
+        when (period) {
+            "Semanal" -> add(Calendar.DAY_OF_MONTH, 7)
+            "Anual" -> add(Calendar.YEAR, 1)
+            else -> add(Calendar.MONTH, 1)
+        }
+        add(Calendar.MILLISECOND, -1)
+    }
+    return start.timeInMillis to end.timeInMillis
+}
+
+/** Días que faltan para que termine el periodo (0 = hoy es el último día). */
+fun daysLeftInPeriod(period: String, now: Long = System.currentTimeMillis()): Int {
+    val lastDay = startOfDay(budgetPeriodRange(period, now).second)
+    return ((lastDay - startOfDay(now)) / 86_400_000.0).roundToInt()
+}
+
+/** Total gastado en [category] durante el periodo en curso. */
+fun spentInPeriod(movements: List<Movement>, category: String, period: String): Double {
+    val (from, to) = budgetPeriodRange(period)
+    return movements
+        .filter { it.type == MovementType.GASTO && it.category.equals(category, ignoreCase = true) }
+        .filter { it.timestamp in from..to }
+        .sumOf { it.amount }
+}
+
+/** "quedan 5 días del mes", "queda 1 día de la semana", "es el último día del año". */
+fun daysLeftText(days: Int, period: String): String {
+    val of = when (period) {
+        "Semanal" -> "de la semana"
+        "Anual" -> "del año"
+        else -> "del mes"
+    }
+    return when (days) {
+        0 -> "es el último día $of"
+        1 -> "queda 1 día $of"
+        else -> "quedan $days días $of"
+    }
+}
+
+/** "este mes", "esta semana", "este año". */
+fun currentPeriodText(period: String): String = when (period) {
+    "Semanal" -> "esta semana"
+    "Anual" -> "este año"
+    else -> "este mes"
+}
+
 /**
- * Presupuesto mensual de una categoría, guardado en `users/{uid}/budgets/{id}`.
- * Solo se guarda el límite; [spent] se calcula con los gastos del mes en curso.
+ * Presupuesto de una categoría, guardado en `users/{uid}/budgets/{id}`.
+ * Solo se guarda el límite; [spent] se calcula con los gastos del periodo en curso.
  */
 data class CategoryBudget(
     val id: String = "",
@@ -130,6 +192,7 @@ data class CategoryBudget(
 ) {
     val isExceeded: Boolean get() = spent > limit
     val percentage: Int get() = if (limit > 0) ((spent / limit) * 100).toInt() else 0
+    val isNearLimit: Boolean get() = !isExceeded && alertEnabled && percentage >= alertThreshold
     val remaining: Double get() = (limit - spent).coerceAtLeast(0.0)
     val exceededAmount: Double get() = (spent - limit).coerceAtLeast(0.0)
 

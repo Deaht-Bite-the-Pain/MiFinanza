@@ -65,20 +65,6 @@ import com.udb.mifinanza.ui.theme.White
 import java.util.Calendar
 import java.util.TimeZone
 
-private val AllCategories = listOf(
-    "Alimentación",
-    "Transporte",
-    "Ocio",
-    "Servicios",
-    "Salud",
-    "Salario",
-    "Educación",
-    "Hogar",
-    "Ventas",
-    "Beca",
-    "Otros"
-)
-
 /** Hoja inferior con los filtros avanzados del historial */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -94,8 +80,13 @@ fun FiltersSheet(
     var minText by remember { mutableStateOf(initial.minAmount?.let(::amountToText).orEmpty()) }
     var maxText by remember { mutableStateOf(initial.maxAmount?.let(::amountToText).orEmpty()) }
     var pickingDate by remember { mutableStateOf<DateField?>(null) }
+    // Además de las categorías de la app se incluyen las que ya existan en los movimientos guardados.
+    val categories = remember(movements) {
+        (ExpenseCategories + IncomeCategories + movements.map { it.category })
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+    }
 
-    // El contador de resultados se calcula en vivo según lo que el usuario va modificando
     val resultCount = remember(draft, movements, query) {
         movements.filterHistory(query, draft.normalized()).size
     }
@@ -122,7 +113,6 @@ fun FiltersSheet(
                 .padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // Encabezado: "Filtros" y "LIMPIAR TODO"
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -150,7 +140,6 @@ fun FiltersSheet(
                 )
             }
 
-            // Sección 1: TIPO
             Section("TIPO") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TypeFilter.entries.forEach { type ->
@@ -163,7 +152,6 @@ fun FiltersSheet(
                 }
             }
 
-            // Sección 2: RANGO DE FECHAS
             Section("RANGO DE FECHAS") {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     DateBox(
@@ -181,13 +169,12 @@ fun FiltersSheet(
                 }
             }
 
-            // Sección 3: CATEGORÍAS
             Section("CATEGORÍAS") {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    AllCategories.forEach { category ->
+                    categories.forEach { category ->
                         val selected = category in draft.categories
                         SelectableChip(
                             label = category,
@@ -202,7 +189,6 @@ fun FiltersSheet(
                 }
             }
 
-            // Sección 4: MONTO
             Section("MONTO") {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -237,7 +223,6 @@ fun FiltersSheet(
                 }
             }
 
-            // Botón Principal: Aplicar filtros (X resultados)
             Button(
                 onClick = { onApply(draft.normalized()) },
                 modifier = Modifier
@@ -260,7 +245,6 @@ fun FiltersSheet(
         }
     }
 
-    // Selector de Fecha emergente
     pickingDate?.let { field ->
         val current = if (field == DateField.From) draft.dateFrom else draft.dateTo
         val pickerState = rememberDatePickerState(

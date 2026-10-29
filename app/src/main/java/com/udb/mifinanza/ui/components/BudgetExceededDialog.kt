@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.udb.mifinanza.data.CategoryBudget
+import com.udb.mifinanza.data.daysLeftInPeriod
+import com.udb.mifinanza.data.daysLeftText
 import com.udb.mifinanza.data.formatMoney
 import com.udb.mifinanza.ui.theme.Accent500
 import com.udb.mifinanza.ui.theme.Danger500
@@ -43,7 +45,6 @@ import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
 import com.udb.mifinanza.ui.theme.MiFinanzaTheme
 import com.udb.mifinanza.ui.theme.White
-import java.util.Calendar
 
 @Composable
 fun BudgetExceededDialog(
@@ -52,9 +53,7 @@ fun BudgetExceededDialog(
     onDismiss: () -> Unit,
     onAdjustLimit: () -> Unit
 ) {
-    val now = Calendar.getInstance()
-    val daysRemaining = now.getActualMaximum(Calendar.DAY_OF_MONTH) - now.get(Calendar.DAY_OF_MONTH)
-    val daysText = if (daysRemaining == 1) "queda 1 día" else "quedan $daysRemaining días"
+    val daysText = daysLeftText(daysLeftInPeriod(budget.period), budget.period)
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -71,7 +70,6 @@ fun BudgetExceededDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Icono circular con alerta en rojo
                 Box(
                     modifier = Modifier
                         .size(52.dp)
@@ -82,7 +80,6 @@ fun BudgetExceededDialog(
                         val w = size.width
                         val h = size.height
 
-                        // Triángulo de advertencia con esquinas redondeadas
                         val path = Path().apply {
                             moveTo(w * 0.5f, h * 0.12f)
                             lineTo(w * 0.92f, h * 0.88f)
@@ -99,7 +96,6 @@ fun BudgetExceededDialog(
                             )
                         )
 
-                        // Signo de exclamación: barra vertical
                         drawLine(
                             color = Danger500,
                             start = Offset(w * 0.5f, h * 0.40f),
@@ -108,7 +104,6 @@ fun BudgetExceededDialog(
                             cap = StrokeCap.Round
                         )
 
-                        // Signo de exclamación: punto inferior
                         drawCircle(
                             color = Danger500,
                             radius = 1.4.dp.toPx(),
@@ -117,7 +112,6 @@ fun BudgetExceededDialog(
                     }
                 }
 
-                // Título
                 Text(
                     text = "Presupuesto de ${budget.category}\nexcedido",
                     fontFamily = Manrope,
@@ -127,16 +121,14 @@ fun BudgetExceededDialog(
                     color = Ink950
                 )
 
-                // Mensaje descriptivo con valores dinámicos
                 Text(
-                    text = "Gastaste ${formatMoney(budget.spent, currencySymbol)} de un límite de ${formatMoney(budget.limit, currencySymbol)}. El exceso es de ${formatMoney(budget.exceededAmount, currencySymbol)} y $daysText del mes.",
+                    text = "Gastaste ${formatMoney(budget.spent, currencySymbol)} de un límite de ${formatMoney(budget.limit, currencySymbol)}. El exceso es de ${formatMoney(budget.exceededAmount, currencySymbol)} y $daysText.",
                     fontFamily = Manrope,
                     fontSize = 14.sp,
                     lineHeight = 21.sp,
                     color = Ink600
                 )
 
-                // Barra roja horizontal de exceso
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -146,7 +138,6 @@ fun BudgetExceededDialog(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Fila de botones de acción
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),

@@ -89,6 +89,28 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun saveProfile(profile: UserProfile, onSuccess: () -> Unit) {
+        val error = when {
+            profile.name.isBlank() -> "Ingresa tu nombre completo."
+            profile.phone.isNotEmpty() && !PHONE.matches(profile.phone) -> "El teléfono solo puede tener números, espacios, + y -."
+            else -> null
+        }
+        if (error != null) {
+            _state.update { it.copy(error = error) }
+            return
+        }
+        if (_state.value.isLoading) return
+        _state.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            repository.saveProfile(profile)
+                .onSuccess { saved ->
+                    _state.update { it.copy(isLoading = false, profile = saved) }
+                    onSuccess()
+                }
+                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toUserMessage()) } }
+        }
+    }
+
     fun signOut() {
         repository.signOut()
         prefs.edit().putBoolean(KEY_KEEP_SESSION, false).apply()
@@ -112,5 +134,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val KEY_KEEP_SESSION = "keep_session"
+        val PHONE = Regex("""[+\d][\d\s-]{6,19}""")
     }
 }

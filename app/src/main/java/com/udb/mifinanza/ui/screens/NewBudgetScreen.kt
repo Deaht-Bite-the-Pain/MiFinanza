@@ -24,6 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -35,6 +36,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -51,16 +53,19 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.udb.mifinanza.data.BudgetPeriods
 import com.udb.mifinanza.data.CategoryBudget
 import com.udb.mifinanza.data.ExpenseCategories
 import com.udb.mifinanza.data.Movement
-import com.udb.mifinanza.data.MovementType
+import com.udb.mifinanza.data.currentPeriodText
 import com.udb.mifinanza.data.filterAmountInput
 import com.udb.mifinanza.data.formatMoney
+import com.udb.mifinanza.data.spentInPeriod
 import com.udb.mifinanza.ui.components.ErrorBanner
 import com.udb.mifinanza.ui.components.StatusBarIcons
 import com.udb.mifinanza.ui.theme.Accent500
 import com.udb.mifinanza.ui.theme.Accent700
+import com.udb.mifinanza.ui.theme.Danger500
 import com.udb.mifinanza.ui.theme.Ink100
 import com.udb.mifinanza.ui.theme.Ink200
 import com.udb.mifinanza.ui.theme.Ink300
@@ -72,7 +77,6 @@ import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
 import com.udb.mifinanza.ui.theme.MiFinanzaTheme
 import com.udb.mifinanza.ui.theme.White
-import java.util.Calendar
 import java.util.Locale
 
 @Composable
@@ -84,11 +88,11 @@ fun NewBudgetScreen(
     isSaving: Boolean = false,
     errorMessage: String? = null,
     onCancel: () -> Unit,
-    onSave: (CategoryBudget) -> Unit
+    onSave: (CategoryBudget) -> Unit,
+    onDelete: (CategoryBudget) -> Unit = {}
 ) {
     StatusBarIcons(dark = true)
 
-    // Valores iniciales
     var selectedCategory by remember {
         mutableStateOf(
             initialBudget?.category
@@ -98,7 +102,7 @@ fun NewBudgetScreen(
     }
     var limitText by remember {
         mutableStateOf(
-            initialBudget?.let { String.format(Locale.US, "%.2f", it.limit) } ?: "150.00"
+            initialBudget?.let { String.format(Locale.US, "%.2f", it.limit) } ?: ""
         )
     }
     var period by remember {
@@ -113,24 +117,10 @@ fun NewBudgetScreen(
 
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
     var formError by remember { mutableStateOf<String?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Calcular el gasto del mes actual para la categoría seleccionada
-    val currentMonthSpent = remember(selectedCategory, movements) {
-        val now = Calendar.getInstance()
-        val currentMonthKey = now.get(Calendar.YEAR) * 12 + now.get(Calendar.MONTH)
-        movements
-            .filter { it.type == MovementType.GASTO && it.category.equals(selectedCategory, ignoreCase = true) }
-            .filter {
-                val cal = Calendar.getInstance().apply { timeInMillis = it.timestamp }
-                cal.get(Calendar.YEAR) * 12 + cal.get(Calendar.MONTH) == currentMonthKey
-            }
-            .sumOf { it.amount }
-    }
-
-    val spent = if (initialBudget != null && initialBudget.category.equals(selectedCategory, ignoreCase = true)) {
-        initialBudget.spent
-    } else {
-        currentMonthSpent
+    val spent = remember(selectedCategory, period, movements) {
+        spentInPeriod(movements, selectedCategory, period)
     }
 
     val limitValue = limitText.toDoubleOrNull() ?: 0.0
@@ -144,7 +134,6 @@ fun NewBudgetScreen(
             .navigationBarsPadding()
             .imePadding()
     ) {
-        // Barra Superior con Botón "X" y Título
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -167,7 +156,7 @@ fun NewBudgetScreen(
                 )
             }
             Text(
-                text = "Nuevo presupuesto",
+                text = if (initialBudget == null) "Nuevo presupuesto" else "Editar presupuesto",
                 fontFamily = Manrope,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
@@ -182,7 +171,6 @@ fun NewBudgetScreen(
                 .background(Ink200)
         )
 
-        // Formulario Scrolleable
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -192,7 +180,6 @@ fun NewBudgetScreen(
         ) {
             (formError ?: errorMessage)?.let { ErrorBanner(it) }
 
-            // 1. Campo Categoría
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     "Categoría",
@@ -251,10 +238,9 @@ fun NewBudgetScreen(
                 }
             }
 
-            // 2. Campo Límite mensual
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Límite mensual",
+                    "Límite ${period.lowercase()}",
                     fontFamily = Manrope,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
@@ -293,7 +279,6 @@ fun NewBudgetScreen(
                 }
             }
 
-            // 3. Campo Periodo (Segmented tabs)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     "Periodo",
@@ -310,7 +295,7 @@ fun NewBudgetScreen(
                         .padding(4.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxSize()) {
-                        listOf("Mensual", "Semanal", "Anual").forEach { p ->
+                        BudgetPeriods.forEach { p ->
                             val isSelected = period.equals(p, ignoreCase = true)
                             Box(
                                 modifier = Modifier
@@ -341,7 +326,6 @@ fun NewBudgetScreen(
                 }
             }
 
-            // 4. Tarjeta: Alerta al acercarse al límite
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -350,7 +334,6 @@ fun NewBudgetScreen(
                     .padding(18.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    // Fila de Switch
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -368,7 +351,7 @@ fun NewBudgetScreen(
                                 color = Ink950
                             )
                             Text(
-                                "Notificación push y banner en Inicio",
+                                "Aviso en Inicio al llegar al umbral",
                                 fontFamily = Manrope,
                                 fontSize = 12.sp,
                                 color = Ink500
@@ -389,7 +372,6 @@ fun NewBudgetScreen(
                         )
                     }
 
-                    // Línea divisora
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -397,7 +379,6 @@ fun NewBudgetScreen(
                             .background(Ink100)
                     )
 
-                    // Umbral de alerta
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -419,7 +400,6 @@ fun NewBudgetScreen(
                         )
                     }
 
-                    // Slider de umbral
                     Slider(
                         value = alertThreshold,
                         onValueChange = { alertThreshold = it },
@@ -437,19 +417,17 @@ fun NewBudgetScreen(
                 }
             }
 
-            // 5. Banner Informativo Dinámico
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFFEBF3F9), RoundedCornerShape(12.dp))
                     .padding(16.dp)
             ) {
-                val infoText = if (!alertEnabled) {
-                    "En $selectedCategory llevas ${formatMoney(spent, currencySymbol)} gastados este mes. La alerta al límite se encuentra desactivada."
-                } else if (limitValue <= 0.0) {
-                    "En $selectedCategory llevas ${formatMoney(spent, currencySymbol)} gastados este mes. Ingresa un límite para activar el umbral de alerta."
-                } else {
-                    "En $selectedCategory llevas ${formatMoney(spent, currencySymbol)} gastados este mes. Con un límite de ${formatMoney(limitValue, currencySymbol)} la alerta se activaría al llegar a ${formatMoney(thresholdAmount, currencySymbol)}."
+                val spentText = "En $selectedCategory llevas ${formatMoney(spent, currencySymbol)} gastados ${currentPeriodText(period)}."
+                val infoText = when {
+                    !alertEnabled -> "$spentText La alerta al límite está desactivada."
+                    limitValue <= 0.0 -> "$spentText Ingresa un límite para activar el umbral de alerta."
+                    else -> "$spentText Con un límite de ${formatMoney(limitValue, currencySymbol)} la alerta se activaría al llegar a ${formatMoney(thresholdAmount, currencySymbol)}."
                 }
 
                 Text(
@@ -464,7 +442,6 @@ fun NewBudgetScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Barra Inferior Fija: Cancelar y Guardar presupuesto
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -484,21 +461,23 @@ fun NewBudgetScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val editing = initialBudget != null
                 OutlinedButton(
-                    onClick = onCancel,
+                    onClick = { if (editing) showDeleteDialog = true else onCancel() },
+                    enabled = !isSaving,
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Ink300),
+                    border = if (editing) BorderStroke(1.5.dp, Danger500) else BorderStroke(1.dp, Ink300),
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = White)
                 ) {
                     Text(
-                        "Cancelar",
+                        if (editing) "Eliminar" else "Cancelar",
                         fontFamily = Manrope,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = Ink950
+                        color = if (editing) Danger500 else Ink950
                     )
                 }
 
@@ -507,6 +486,13 @@ fun NewBudgetScreen(
                         val limit = limitText.toDoubleOrNull() ?: 0.0
                         if (limit <= 0.0) {
                             formError = "Ingresa un límite válido mayor a cero."
+                            return@Button
+                        }
+                        val takenByOther = initialBudget != null &&
+                            !selectedCategory.equals(initialBudget.category, ignoreCase = true) &&
+                            existingBudgetCategories.any { it.equals(selectedCategory, ignoreCase = true) }
+                        if (takenByOther) {
+                            formError = "Ya tienes un presupuesto para $selectedCategory."
                             return@Button
                         }
                         formError = null
@@ -538,6 +524,31 @@ fun NewBudgetScreen(
                 }
             }
         }
+    }
+
+    if (showDeleteDialog && initialBudget != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar presupuesto", fontFamily = Manrope, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Se eliminará el presupuesto de ${initialBudget.category}. Tus movimientos no se borran.",
+                    fontFamily = Manrope
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDelete(initialBudget)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Danger500)
+                ) { Text("Eliminar", color = White) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar", color = Ink600) }
+            }
+        )
     }
 }
 

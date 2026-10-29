@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.udb.mifinanza.data.BudgetAlert
 import com.udb.mifinanza.data.FinanceSummary
+import com.udb.mifinanza.data.daysLeftText
 import com.udb.mifinanza.data.formatMoney
 import com.udb.mifinanza.data.Movement
 import com.udb.mifinanza.data.MovementType
@@ -70,6 +71,7 @@ fun HomeScreen(
     onOpenNewMovement: () -> Unit,
     onOpenMovementDetail: (Movement) -> Unit,
     onTabSelected: (NavTab) -> Unit,
+    onOpenReports: () -> Unit = {},
     financeViewModel: FinanceViewModel = viewModel()
 ) {
     StatusBarIcons(dark = true)
@@ -86,7 +88,6 @@ fun HomeScreen(
             .navigationBarsPadding()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Contenido Scrolleable
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -94,7 +95,6 @@ fun HomeScreen(
                     .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Header: Saludo y botones superiores
                 HomeTopBar(
                     // Mientras se carga el perfil no se muestra ningún nombre.
                     name = if (profile.name.isBlank()) "" else profile.firstName,
@@ -106,22 +106,17 @@ fun HomeScreen(
                 if (!financeState.loaded) {
                     if (financeState.error == null) LoadingBox()
                 } else {
-                    // Tarjeta Principal de Saldo
                     BalanceCard(summary = summary, symbol = symbol)
 
-                    // Alerta del presupuesto más comprometido del mes (si hay alguno al 80 % o más)
                     summary.budgetAlert?.let { BudgetAlertBanner(alert = it, symbol = symbol) }
 
-                    // Botones rápidos: Agregar movimiento y Ver reportes
                     QuickActionsRow(
                         onAddMovement = onOpenNewMovement,
-                        onViewReports = { /* TODO reportes */ }
+                        onViewReports = onOpenReports
                     )
 
-                    // Gráfico de los últimos 6 meses
                     MonthlyExpensesChart(summary = summary)
 
-                    // Sección de Movimientos recientes
                     RecentMovementsSection(
                         movements = summary.recentMovements,
                         symbol = symbol,
@@ -130,15 +125,12 @@ fun HomeScreen(
                     )
                 }
 
-                // Espacio inferior para no tapar con el FAB
                 Spacer(modifier = Modifier.height(60.dp))
             }
 
-            // Barra de Navegación Inferior
             BottomNavBar(active = NavTab.Inicio, onSelect = onTabSelected)
         }
 
-        // Botón Flotante "+" (FAB)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -181,16 +173,12 @@ private fun HomeTopBar(name: String, onOpenProfile: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icono de Tarjeta / Cartera
             Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clickable { /* tarjetas */ },
+                modifier = Modifier.size(36.dp),
                 contentAlignment = Alignment.Center
             ) {
                 CardOutlineIcon(tint = Ink950)
             }
-            // Icono de Perfil
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -304,11 +292,7 @@ private fun BudgetAlertBanner(alert: BudgetAlert, symbol: String) {
                 )
                 Text(
                     "${formatMoney(alert.spent, symbol, 0)} de ${formatMoney(alert.limit, symbol, 0)} · " +
-                        when (alert.daysRemaining) {
-                            0 -> "último día del mes"
-                            1 -> "queda 1 día del mes"
-                            else -> "quedan ${alert.daysRemaining} días del mes"
-                        },
+                        daysLeftText(alert.daysRemaining, alert.period),
                     fontFamily = Manrope,
                     fontSize = 12.sp,
                     color = Color(0xFF9E6515)
@@ -324,7 +308,6 @@ private fun QuickActionsRow(onAddMovement: () -> Unit, onViewReports: () -> Unit
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Botón 1: Agregar movimiento
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -350,7 +333,6 @@ private fun QuickActionsRow(onAddMovement: () -> Unit, onViewReports: () -> Unit
             }
         }
 
-        // Botón 2: Ver reportes
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -408,7 +390,6 @@ private fun MonthlyExpensesChart(summary: FinanceSummary) {
                 )
             }
 
-            // Barras del gráfico
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

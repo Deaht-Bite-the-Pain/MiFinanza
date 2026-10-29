@@ -47,6 +47,11 @@ class FinanceRepository(
         Unit
     }
 
+    suspend fun deleteBudget(budgetId: String): Result<Unit> = runCatching {
+        userCollection(BUDGETS).document(budgetId).delete().await()
+        Unit
+    }
+
     private fun calculateSummary(movements: List<Movement>, storedBudgets: List<CategoryBudget>): FinanceSummary {
         val now = Calendar.getInstance()
         val currentKey = monthKey(now)
@@ -74,22 +79,15 @@ class FinanceRepository(
             )
         }
 
-        // Lo gastado en cada presupuesto sale de los gastos del mes en esa categoría.
+        // Lo gastado en cada presupuesto sale de los gastos de esa categoría en su periodo (semana, mes o año).
         val budgets = storedBudgets
-            .map { budget ->
-                budget.copy(
-                    spent = monthExpensesList
-                        .filter { it.category.equals(budget.category, ignoreCase = true) }
-                        .sumOf { it.amount }
-                )
-            }
+            .map { budget -> budget.copy(spent = spentInPeriod(movements, budget.category, budget.period)) }
             .sortedBy { it.category }
 
-        val daysRemaining = now.getActualMaximum(Calendar.DAY_OF_MONTH) - now.get(Calendar.DAY_OF_MONTH)
         val alert = budgets
             .filter { it.limit > 0 && it.alertEnabled && it.percentage >= it.alertThreshold }
             .maxByOrNull { it.spent / it.limit }
-            ?.let { BudgetAlert(it.category, it.spent, it.limit, daysRemaining) }
+            ?.let { BudgetAlert(it.category, it.spent, it.limit, daysLeftInPeriod(it.period), it.period) }
 
         return FinanceSummary(
             availableBalance = balance,

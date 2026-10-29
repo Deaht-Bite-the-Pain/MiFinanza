@@ -76,7 +76,7 @@ fun BudgetScreen(
     var exceededBudgetToShow by remember { mutableStateOf<CategoryBudget?>(null) }
     var hasAutoShownAlert by rememberSaveable { mutableStateOf(false) }
 
-    // Al cargar los presupuestos, si hay alguno excedido, mostrar automáticamente el modal de alerta (una vez al entrar)
+    // El aviso de presupuesto excedido se abre solo, una vez por visita a la pantalla.
     LaunchedEffect(budgets) {
         if (!hasAutoShownAlert && budgets.isNotEmpty()) {
             val firstExceeded = budgets.find { it.isExceeded }
@@ -99,7 +99,6 @@ fun BudgetScreen(
             .navigationBarsPadding()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Contenido Scrolleable
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -107,7 +106,6 @@ fun BudgetScreen(
                     .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Header Superior: "Presupuestos" y el mes en curso
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -137,7 +135,6 @@ fun BudgetScreen(
                 if (!financeState.loaded) {
                     if (financeState.error == null) LoadingBox()
                 } else {
-                    // Tarjeta 1: Total Presupuestado vs Gastado
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -187,7 +184,6 @@ fun BudgetScreen(
                         }
                     }
 
-                    // Tarjetas de Presupuesto por Categoría
                     if (budgets.isEmpty()) {
                         Box(
                             modifier = Modifier
@@ -222,15 +218,12 @@ fun BudgetScreen(
                     }
                 }
 
-                // Espacio inferior para no tapar con el botón flotante "+ Nuevo"
                 Spacer(modifier = Modifier.height(70.dp))
             }
 
-            // Barra de Navegación Inferior (Pestaña "Presupuestos" activa)
             BottomNavBar(active = NavTab.Presupuestos, onSelect = onTabSelected)
         }
 
-        // Botón Flotante "+ Nuevo"
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -262,7 +255,6 @@ fun BudgetScreen(
             }
         }
 
-        // Modal de Alerta de Presupuesto Excedido
         exceededBudgetToShow?.let { budget ->
             BudgetExceededDialog(
                 budget = budget,
@@ -281,12 +273,12 @@ fun BudgetScreen(
 @Composable
 private fun BudgetCategoryCard(budget: CategoryBudget, currencySymbol: String, onClick: () -> Unit) {
     val isExceeded = budget.isExceeded
-    val isWarning = budget.percentage >= 80 && !isExceeded
+    val isWarning = budget.isNearLimit
 
     val barColor = when {
         isExceeded -> Danger500
-        isWarning -> Color(0xFFB57916) // Ámbar / dorado
-        else -> Accent500 // Azul estándar
+        isWarning -> Color(0xFFB57916)
+        else -> Accent500
     }
 
     val cardBorder = if (isExceeded) {
@@ -304,19 +296,28 @@ private fun BudgetCategoryCard(budget: CategoryBudget, currencySymbol: String, o
             .padding(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Fila de Título y Montos ($gastado / $límite)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    budget.category,
-                    fontFamily = Manrope,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.5.sp,
-                    color = Ink950
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        budget.category,
+                        fontFamily = Manrope,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.5.sp,
+                        color = Ink950
+                    )
+                    if (budget.period != "Mensual") {
+                        Text(
+                            budget.period,
+                            fontFamily = Manrope,
+                            fontSize = 11.5.sp,
+                            color = Ink500
+                        )
+                    }
+                }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -356,8 +357,7 @@ private fun BudgetCategoryCard(budget: CategoryBudget, currencySymbol: String, o
                 }
             }
 
-            // Barra de Progreso Personalizada
-            val progressFraction = (budget.spent / budget.limit).toFloat().coerceIn(0f, 1f)
+            val progressFraction = if (budget.limit > 0) (budget.spent / budget.limit).toFloat().coerceIn(0f, 1f) else 0f
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -372,7 +372,6 @@ private fun BudgetCategoryCard(budget: CategoryBudget, currencySymbol: String, o
                 )
             }
 
-            // Texto Inferior de Estado
             if (isExceeded) {
                 Text(
                     "Excedido en ${formatMoney(budget.exceededAmount, currencySymbol)}",

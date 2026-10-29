@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 
 data class FinanceUiState(
     val isLoading: Boolean = false,
+    val isSaving: Boolean = false,
     /** true cuando ya se leyeron los datos del usuario al menos una vez. */
     val loaded: Boolean = false,
     val summary: FinanceSummary = FinanceSummary(),
@@ -42,6 +43,8 @@ class FinanceViewModel(
         _state.value = FinanceUiState()
     }
 
+    fun clearError() = _state.update { it.copy(error = null) }
+
     fun saveMovement(movement: Movement, onSuccess: () -> Unit) = runAndReload(onSuccess) {
         repository.saveMovement(movement)
     }
@@ -56,15 +59,21 @@ class FinanceViewModel(
         runAndReload(onSuccess) { repository.saveBudget(budget.copy(id = existing?.id ?: budget.id)) }
     }
 
+    fun deleteBudget(budgetId: String, onSuccess: () -> Unit) = runAndReload(onSuccess) {
+        repository.deleteBudget(budgetId)
+    }
+
     private fun runAndReload(onSuccess: () -> Unit, block: suspend () -> Result<Unit>) {
-        _state.update { it.copy(isLoading = true, error = null) }
+        if (_state.value.isSaving) return
+        _state.update { it.copy(isSaving = true, error = null) }
         viewModelScope.launch {
             block()
                 .onSuccess {
+                    _state.update { it.copy(isSaving = false) }
                     loadSummary()
                     onSuccess()
                 }
-                .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.toUserMessage()) } }
+                .onFailure { e -> _state.update { it.copy(isSaving = false, error = e.toUserMessage()) } }
         }
     }
 }

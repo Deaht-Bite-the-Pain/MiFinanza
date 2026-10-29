@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -62,7 +61,6 @@ import com.udb.mifinanza.ui.components.ErrorBanner
 import com.udb.mifinanza.ui.components.LoadingBox
 import com.udb.mifinanza.ui.components.NavTab
 import com.udb.mifinanza.ui.components.StatusBarIcons
-import com.udb.mifinanza.ui.theme.Accent100
 import com.udb.mifinanza.ui.theme.Accent500
 import com.udb.mifinanza.ui.theme.Accent700
 import com.udb.mifinanza.ui.theme.Danger500
@@ -78,7 +76,7 @@ import com.udb.mifinanza.ui.theme.Success500
 import com.udb.mifinanza.ui.theme.White
 import kotlin.math.abs
 
-/** Ícono de filtro con 3 barras horizontales alineadas como en el diseño */
+/** Ícono del botón de filtros: tres barras de largo decreciente. */
 @Composable
 fun FilterBarsIcon(modifier: Modifier = Modifier, tint: Color = Accent500) {
     Canvas(modifier = modifier) {
@@ -86,7 +84,6 @@ fun FilterBarsIcon(modifier: Modifier = Modifier, tint: Color = Accent500) {
         val h = size.height
         val strokeWidthPx = 2.dp.toPx()
 
-        // Barra superior (más ancha)
         drawLine(
             color = tint,
             start = Offset(w * 0.20f, h * 0.32f),
@@ -95,7 +92,6 @@ fun FilterBarsIcon(modifier: Modifier = Modifier, tint: Color = Accent500) {
             cap = StrokeCap.Round
         )
 
-        // Barra intermedia (media)
         drawLine(
             color = tint,
             start = Offset(w * 0.32f, h * 0.50f),
@@ -104,7 +100,6 @@ fun FilterBarsIcon(modifier: Modifier = Modifier, tint: Color = Accent500) {
             cap = StrokeCap.Round
         )
 
-        // Barra inferior (corta)
         drawLine(
             color = tint,
             start = Offset(w * 0.44f, h * 0.68f),
@@ -130,16 +125,7 @@ fun HistoryScreen(
 
     var query by rememberSaveable { mutableStateOf("") }
 
-    // Filtro inicial por defecto (Este mes y Gastos) idéntico a la imagen de muestra
-    val initialFilter = remember {
-        val (monthStart, monthEnd) = monthRange(System.currentTimeMillis())
-        HistoryFilter(
-            dateFrom = monthStart,
-            dateTo = monthEnd,
-            type = TypeFilter.GASTOS
-        )
-    }
-    var filter by remember { mutableStateOf(initialFilter) }
+    var filter by remember { mutableStateOf(HistoryFilter()) }
     var showFilters by remember { mutableStateOf(false) }
 
     val results = remember(movements, query, filter) { movements.filterHistory(query, filter) }
@@ -155,7 +141,6 @@ fun HistoryScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        // Cabecera superior con título, contador, buscador y chips
         HistoryHeader(
             count = results.size,
             query = query,
@@ -217,7 +202,6 @@ fun HistoryScreen(
                     if (error != null) item { ErrorBanner(error) }
 
                     groups.forEach { (day, list) ->
-                        // Encabezado de fecha de cada grupo (ej: 12 AGO 2026 · -$42.80)
                         item(key = "day-$day") {
                             val net = list.sumOf { if (it.type == MovementType.INGRESO) it.amount else -it.amount }
                             val sign = if (net >= 0) "+" else "-"
@@ -232,7 +216,6 @@ fun HistoryScreen(
                             )
                         }
 
-                        // Tarjetas de movimientos pertenecientes a este día
                         items(list, key = { it.id }) { movement ->
                             MovementCard(movement, currencySymbol) { onMovementClick(movement) }
                         }
@@ -241,7 +224,6 @@ fun HistoryScreen(
             }
         }
 
-        // Barra de navegación inferior
         BottomNavBar(active = NavTab.Historial, onSelect = onTabSelected)
     }
 
@@ -279,7 +261,6 @@ private fun HistoryHeader(
             modifier = Modifier.padding(top = 14.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Fila de Título y Conteo
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -304,7 +285,6 @@ private fun HistoryHeader(
                 )
             }
 
-            // Fila de Búsqueda y Botón de Filtros
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -312,7 +292,6 @@ private fun HistoryHeader(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Campo de texto de búsqueda
                 Row(
                     modifier = Modifier
                         .weight(1f)
@@ -369,7 +348,6 @@ private fun HistoryHeader(
                     }
                 }
 
-                // Botón de filtros con 3 barras
                 Box(
                     modifier = Modifier
                         .size(48.dp)
@@ -385,7 +363,6 @@ private fun HistoryHeader(
                 }
             }
 
-            // Píldoras de Filtros Activos
             ActiveFilterChips(
                 filter = filter,
                 symbol = currencySymbol,
@@ -394,7 +371,6 @@ private fun HistoryHeader(
             )
         }
 
-        // Línea divisora sutil
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -567,10 +543,10 @@ private fun MovementCard(movement: Movement, symbol: String, onClick: () -> Unit
 
 private val PreviewMovements = listOf(
     Movement(id = "1", title = "Supermercado Santa María", category = "Alimentación", amount = 42.80, type = MovementType.GASTO, paymentMethod = "Efectivo", timestamp = 1786521600000L),
-    Movement(id = "2", title = "Cine Multiplaza", category = "Ocio", amount = 18.00, type = MovementType.GASTO, paymentMethod = "Tarjeta débito", timestamp = 1786435200000L),
+    Movement(id = "2", title = "Cine Multiplaza", category = "Ocio", amount = 18.00, type = MovementType.GASTO, paymentMethod = "Tarjeta", timestamp = 1786435200000L),
     Movement(id = "3", title = "Bus urbano", category = "Transporte", amount = 13.20, type = MovementType.GASTO, paymentMethod = "Efectivo", timestamp = 1786435200000L),
     Movement(id = "4", title = "Salario agosto", category = "Salario", amount = 1850.00, type = MovementType.INGRESO, paymentMethod = "Transferencia", timestamp = 1786348800000L),
-    Movement(id = "5", title = "Internet fibra 100MB", category = "Servicios", amount = 45.00, type = MovementType.GASTO, paymentMethod = "Débito automático", timestamp = 1786176000000L)
+    Movement(id = "5", title = "Internet fibra 100MB", category = "Servicios", amount = 45.00, type = MovementType.GASTO, paymentMethod = "Cuenta de Ahorros", timestamp = 1786176000000L)
 )
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 800)

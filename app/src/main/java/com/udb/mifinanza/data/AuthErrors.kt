@@ -1,8 +1,10 @@
 package com.udb.mifinanza.data
 
+import com.google.firebase.FirebaseException
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.firestore.FirebaseFirestoreException
+import java.io.IOException
 
 /** Convierte excepciones de Firebase en mensajes para mostrar al usuario. */
 fun Throwable.toUserMessage(): String = when (this) {
@@ -18,7 +20,9 @@ fun Throwable.toUserMessage(): String = when (this) {
         else -> "No se pudo completar la operación ($errorCode)."
     }
     is FirebaseFirestoreException ->
-        if (code == FirebaseFirestoreException.Code.PERMISSION_DENIED) "No tienes permiso para guardar tus datos."
+        if (code == FirebaseFirestoreException.Code.PERMISSION_DENIED) "No tienes permiso para acceder a estos datos."
         else "Error al acceder a la base de datos."
-    else -> "Ocurrió un error inesperado."
+    is FirebaseException -> "No se pudo conectar con el servidor. Inténtalo de nuevo más tarde."
+    is IOException -> "Sin conexión. Revisa tu internet e inténtalo de nuevo."
+    else ->"Ocurrió un error inesperado."
 }

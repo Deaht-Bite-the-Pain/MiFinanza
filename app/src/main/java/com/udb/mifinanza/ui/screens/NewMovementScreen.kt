@@ -73,7 +73,6 @@ import com.udb.mifinanza.ui.theme.Accent500
 import com.udb.mifinanza.ui.theme.Accent700
 import com.udb.mifinanza.ui.theme.Danger500
 import com.udb.mifinanza.ui.theme.Ink100
-import com.udb.mifinanza.ui.theme.Ink200
 import com.udb.mifinanza.ui.theme.Ink300
 import com.udb.mifinanza.ui.theme.Ink400
 import com.udb.mifinanza.ui.theme.Ink50
@@ -139,7 +138,6 @@ fun NewMovementScreen(
             .navigationBarsPadding()
             .imePadding()
     ) {
-        // Barra Superior con Botón "X" y Título
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -169,7 +167,6 @@ fun NewMovementScreen(
             )
         }
 
-        // Formulario Scrolleable
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -179,7 +176,6 @@ fun NewMovementScreen(
         ) {
             (formError ?: errorMessage)?.let { ErrorBanner(it) }
 
-            // Selector Ingreso / Gasto
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -188,7 +184,6 @@ fun NewMovementScreen(
                     .padding(4.dp)
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
-                    // Ingreso
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -214,7 +209,6 @@ fun NewMovementScreen(
                         )
                     }
 
-                    // Gasto
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -242,7 +236,6 @@ fun NewMovementScreen(
                 }
             }
 
-            // Campo Monto
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     "Monto",
@@ -284,7 +277,6 @@ fun NewMovementScreen(
                 }
             }
 
-            // Campo Concepto
             LabeledTextField(
                 label = "Concepto",
                 value = title,
@@ -292,7 +284,6 @@ fun NewMovementScreen(
                 placeholder = if (movementType == MovementType.INGRESO) "Ej. Pago de beca, Venta..." else "Ej. Supermercado, Pago de luz..."
             )
 
-            // Campo Categoría con Dropdown
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     "Categoría",
@@ -338,7 +329,6 @@ fun NewMovementScreen(
                     }
                 }
 
-                // Chips de Categorías rápidas
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -369,12 +359,10 @@ fun NewMovementScreen(
                 }
             }
 
-            // Dos Columnas: Fecha y Método de Pago
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Fecha
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -413,7 +401,6 @@ fun NewMovementScreen(
                     }
                 }
 
-                // Método de Pago
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -464,7 +451,6 @@ fun NewMovementScreen(
                 }
             }
 
-            // Campo Descripción
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     "Descripción",
@@ -499,7 +485,6 @@ fun NewMovementScreen(
                 }
             }
 
-            // Campo Etiquetas
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     "Etiquetas",
@@ -540,7 +525,6 @@ fun NewMovementScreen(
                         }
                     }
 
-                    // Botón "+ agregar" con borde punteado
                     Box(
                         modifier = Modifier
                             .drawBehind {
@@ -570,7 +554,6 @@ fun NewMovementScreen(
             Spacer(modifier = Modifier.height(20.dp))
         }
 
-        // Barra Inferior Fija: Cancelar y Guardar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
