@@ -17,7 +17,7 @@ Proyecto de cátedra de **DSM441 – Desarrollo de Software para Móviles** (Uni
 | Presupuestos y alertas | Presupuestos por categoría con periodo mensual, semanal o anual; barra de progreso; aviso dentro de la app y **notificación del sistema** al llegar al umbral o excederse |
 | Historial | Movimientos agrupados por día, búsqueda (sin distinguir tildes) y filtros por tipo, fechas, categorías y monto |
 | Reportes | Resumen mensual con balance, ahorro, comparación con el mes anterior y desglose por categoría |
-| Noticias académicas | Becas, finanzas y créditos educativos desde un RSS público, con filtro por categoría, detalle, compartir y apertura en el navegador |
+| Noticias académicas | Pestaña en la barra inferior con noticias recientes (últimos 30 días) y eventos vigentes de la Universidad Don Bosco, filtro Noticias/Eventos, detalle con imagen y texto completo, compartir y apertura en el navegador |
 | Estados vacíos y de error | Sin movimientos, sin resultados y sin conexión con opción de reintentar |
 
 ## Tecnología
@@ -25,7 +25,7 @@ Proyecto de cátedra de **DSM441 – Desarrollo de Software para Móviles** (Uni
 - **Kotlin** y **Jetpack Compose** (Material 3), navegación con `navigation-compose`.
 - **Firebase Authentication** (correo y contraseña) y **Cloud Firestore**.
 - Arquitectura por capas: `data/` (modelos y repositorios), `ui/` (pantallas, componentes y ViewModels), `navigation/`, `notifications/`.
-- Noticias: RSS público de Google Noticias leído con `HttpURLConnection` y `XmlPullParser`.
+- Noticias: páginas públicas de noticias y agenda de www.udb.edu.sv leídas con `HttpURLConnection` y expresiones regulares.
 - `minSdk 26`, `compileSdk 35`.
 
 ### Estructura de datos en Firestore
@@ -69,5 +69,6 @@ reportes mensuales, formato de dinero y perfil):
   códigos de 6 dígitos.
 - **Notificaciones:** desde Android 13 la app pide el permiso de notificaciones al entrar al Inicio.
   Cada alerta se muestra una sola vez por presupuesto y periodo.
-- **Noticias:** se consultan tres búsquedas (becas, finanzas y créditos educativos) en Google Noticias;
-  el RSS no incluye imágenes ni el cuerpo del artículo, por eso el detalle abre la nota completa en el navegador.
+- **Noticias:** se leen `udb.edu.sv/udb/noticias`, `/udb/eventos` y `/udb/eventos/mes`. Solo se muestran noticias
+  de los últimos 30 días y eventos que todavía no terminan. La UDB no publica una API, así que si cambia el
+  diseño de su sitio habrá que ajustar el lector en `NewsRepository.kt`.

@@ -88,6 +88,7 @@ fun AppNavigation() {
             NavTab.Inicio -> Routes.HOME
             NavTab.Presupuestos -> Routes.BUDGETS
             NavTab.Movimientos, NavTab.Historial -> Routes.HISTORY
+            NavTab.Noticias -> Routes.NEWS
         }
         if (navController.currentDestination?.route == route) return
         navController.navigate(route) {
@@ -318,7 +319,8 @@ fun AppNavigation() {
                 onItemClick = { item ->
                     selectedNews = item
                     navController.navigate(Routes.NEWS_DETAIL)
-                }
+                },
+                onTabSelected = ::openTab
             )
         }
         composable(Routes.NEWS_DETAIL) {
@@ -328,7 +330,14 @@ fun AppNavigation() {
                 LaunchedEffect(Unit) { navController.popBackStack(Routes.NEWS, inclusive = false) }
                 return@composable
             }
-            NewsDetailScreen(item = news, onBack = { navController.popBackStack() })
+            val newsState by newsViewModel.state.collectAsState()
+            LaunchedEffect(news.link) { newsViewModel.loadArticle(news) }
+            NewsDetailScreen(
+                item = news,
+                paragraphs = if (newsState.articleLink == news.link) newsState.articleParagraphs else emptyList(),
+                isLoadingArticle = newsState.articleLink == news.link && newsState.articleLoading,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }

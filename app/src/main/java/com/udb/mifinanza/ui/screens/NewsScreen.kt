@@ -36,10 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.udb.mifinanza.data.NewsCategory
 import com.udb.mifinanza.data.NewsItem
-import com.udb.mifinanza.data.formatDate
+import com.udb.mifinanza.data.formatDayHeader
 import com.udb.mifinanza.ui.components.AppTopBar
+import com.udb.mifinanza.ui.components.BottomNavBar
 import com.udb.mifinanza.ui.components.EmptyState
 import com.udb.mifinanza.ui.components.LoadingBox
+import com.udb.mifinanza.ui.components.NavTab
 import com.udb.mifinanza.ui.components.StatusBarIcons
 import com.udb.mifinanza.ui.theme.Accent100
 import com.udb.mifinanza.ui.theme.Accent500
@@ -53,7 +55,7 @@ import com.udb.mifinanza.ui.theme.Ink950
 import com.udb.mifinanza.ui.theme.Manrope
 import com.udb.mifinanza.ui.theme.White
 
-/** Noticias sobre becas, finanzas y créditos educativos, con filtro por categoría. */
+/** Noticias recientes y eventos vigentes de la Universidad Don Bosco, con filtro por tipo. */
 @Composable
 fun NewsScreen(
     items: List<NewsItem>,
@@ -62,7 +64,8 @@ fun NewsScreen(
     error: String?,
     onRetry: () -> Unit,
     onBack: () -> Unit,
-    onItemClick: (NewsItem) -> Unit = {}
+    onItemClick: (NewsItem) -> Unit = {},
+    onTabSelected: (NavTab) -> Unit = {}
 ) {
     StatusBarIcons(dark = true)
     // null = "Todas". Se guarda el nombre para que sobreviva a la rotación.
@@ -105,13 +108,13 @@ fun NewsScreen(
                 loaded && items.isEmpty() -> EmptyState(
                     icon = Icons.Filled.Info,
                     title = "Sin noticias por ahora",
-                    message = "Vuelve más tarde para ver novedades sobre becas y educación superior.",
+                    message = "La UDB no tiene noticias recientes ni eventos próximos. Vuelve más tarde.",
                     actionText = "Actualizar",
                     onAction = onRetry
                 )
                 visible.isEmpty() -> EmptyState(
                     icon = Icons.Filled.Info,
-                    title = "Sin noticias en esta categoría",
+                    title = if (selected == NewsCategory.EVENTOS) "Sin eventos próximos" else "Sin noticias recientes",
                     message = "Prueba con otra categoría o vuelve a mostrar todas las noticias.",
                     actionText = "Ver todas",
                     onAction = { selectedName = null }
@@ -126,7 +129,7 @@ fun NewsScreen(
                     }
                     item {
                         Text(
-                            "Fuente: Google Noticias",
+                            "Fuente: Universidad Don Bosco (udb.edu.sv)",
                             fontFamily = Manrope,
                             fontSize = 11.5.sp,
                             color = Ink500,
@@ -136,6 +139,7 @@ fun NewsScreen(
                 }
             }
         }
+        BottomNavBar(active = NavTab.Noticias, onSelect = onTabSelected)
     }
 }
 
@@ -154,11 +158,11 @@ private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) 
     )
 }
 
-/** Etiqueta de categoría en mayúsculas (BECAS, FINANZAS, CRÉDITOS). */
+/** Etiqueta de tipo en mayúsculas (NOTICIA, EVENTO). */
 @Composable
 internal fun CategoryTag(category: NewsCategory) {
     Text(
-        category.label.uppercase(),
+        category.tag.uppercase(),
         fontFamily = FontFamily.Monospace,
         fontWeight = FontWeight.Bold,
         fontSize = 10.sp,
@@ -172,6 +176,7 @@ internal fun CategoryTag(category: NewsCategory) {
 
 @Composable
 private fun NewsCard(item: NewsItem, onClick: () -> Unit) {
+    val isEvent = item.category == NewsCategory.EVENTOS
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -183,40 +188,49 @@ private fun NewsCard(item: NewsItem, onClick: () -> Unit) {
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             CategoryTag(item.category)
-            item.publishedAt?.let {
-                Text(
-                    formatDate(it),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.5.sp,
-                    color = Ink500
-                )
+            newsDateLabel(item)?.let {
+                Text(it, fontFamily = FontFamily.Monospace, fontSize = 10.5.sp, color = Ink500)
             }
         }
         Text(
             item.title,
             fontFamily = Manrope,
             fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
+            fontSize = 15.sp,
+            lineHeight = 21.sp,
             color = Ink950,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        val detail = if (isEvent) listOf(item.source, item.schedule).filter { it.isNotBlank() }.joinToString(" · ") else item.summary
+        if (detail.isNotBlank()) {
             Text(
-                item.source,
+                detail,
                 fontFamily = Manrope,
-                fontSize = 12.sp,
-                color = Ink500,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = Ink600,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
             )
-            Text("Leer más →", fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Accent500)
         }
+        Text(
+            if (isEvent) "Ver evento →" else "Leer más →",
+            fontFamily = Manrope,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            color = Accent500
+        )
+    }
+}
+
+/** "14 AGO 2026"; en eventos de varios días, "23 NOV 2026 – 27 NOV 2026". */
+internal fun newsDateLabel(item: NewsItem): String? {
+    val start = item.publishedAt ?: return null
+    val end = item.endsAt
+    return if (end != null && formatDayHeader(end) != formatDayHeader(start)) {
+        "${formatDayHeader(start)} – ${formatDayHeader(end)}"
+    } else {
+        formatDayHeader(start)
     }
 }

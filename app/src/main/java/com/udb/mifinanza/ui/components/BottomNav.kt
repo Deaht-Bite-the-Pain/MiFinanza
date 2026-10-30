@@ -37,7 +37,8 @@ enum class NavTab(val label: String, val paths: List<String>) {
         "Presupuestos",
         listOf("M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17z", "M12 3.5A8.5 8.5 0 0 1 20.5 12H12z")
     ),
-    Historial("Historial", listOf("M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17z", "M12 7.5V12l3 2"))
+    Historial("Historial", listOf("M12 3.5a8.5 8.5 0 1 0 0 17a8.5 8.5 0 1 0 0-17z", "M12 7.5V12l3 2")),
+    Noticias("Noticias", listOf("M4 5h12v14H6.5A2.5 2.5 0 0 1 4 16.5z", "M16 9h4v7.5a2.5 2.5 0 0 1-2.5 2.5", "M7.5 9h5M7.5 12.5h5M7.5 16h3"))
 }
 
 private fun tabIcon(paths: List<String>): ImageVector =
@@ -58,7 +59,7 @@ private fun tabIcon(paths: List<String>): ImageVector =
         }
     }.build()
 
-/** Barra inferior de 4 pestañas (Inicio, Movimientos, Presupuestos, Historial). */
+/** Barra inferior de 5 pestañas (Inicio, Movimientos, Presupuestos, Historial, Noticias). */
 @Composable
 fun BottomNavBar(active: NavTab, onSelect: (NavTab) -> Unit) {
     Column(modifier = Modifier.fillMaxWidth().background(White)) {
@@ -77,7 +78,7 @@ fun BottomNavBar(active: NavTab, onSelect: (NavTab) -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(icon, contentDescription = tab.label, tint = color, modifier = Modifier.size(22.dp))
-                    Text(tab.label, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 10.5.sp, color = color)
+                    Text(tab.label, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 10.sp, color = color, maxLines = 1, softWrap = false)
                 }
             }
         }
