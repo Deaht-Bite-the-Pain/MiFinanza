@@ -6,6 +6,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.udb.mifinanza.notifications.BudgetNotifier
+import com.udb.mifinanza.notifications.RequestNotificationPermission
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -13,6 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.udb.mifinanza.data.CategoryBudget
 import com.udb.mifinanza.data.Movement
+import com.udb.mifinanza.data.NewsItem
 import com.udb.mifinanza.data.UserProfile
 import com.udb.mifinanza.ui.auth.AuthViewModel
 import com.udb.mifinanza.ui.components.NavTab
@@ -27,6 +31,7 @@ import com.udb.mifinanza.ui.screens.LoginScreen
 import com.udb.mifinanza.ui.screens.MovementDetailScreen
 import com.udb.mifinanza.ui.screens.NewBudgetScreen
 import com.udb.mifinanza.ui.screens.NewMovementScreen
+import com.udb.mifinanza.ui.screens.NewsDetailScreen
 import com.udb.mifinanza.ui.screens.NewsScreen
 import com.udb.mifinanza.ui.screens.ProfileScreen
 import com.udb.mifinanza.ui.screens.RegisterScreen
@@ -47,6 +52,7 @@ object Routes {
     const val HISTORY = "history"
     const val REPORTS = "reports"
     const val NEWS = "news"
+    const val NEWS_DETAIL = "news_detail"
     const val EDIT_PROFILE = "edit_profile"
 }
 
@@ -59,10 +65,20 @@ fun AppNavigation() {
     val auth by authViewModel.state.collectAsState()
     val finance by financeViewModel.state.collectAsState()
     val currencySymbol = (auth.profile ?: UserProfile()).currencySymbol
+    val context = LocalContext.current
+
+    // Avisa (notificación del sistema) cuando un presupuesto llega a su umbral o se excede.
+    LaunchedEffect(finance.loaded, finance.summary.budgets, auth.profile) {
+        if (finance.loaded && auth.profile != null) {
+            BudgetNotifier.check(context, finance.summary.budgets, currencySymbol)
+        }
+    }
+
     val startDestination = remember { if (authViewModel.isSignedIn) Routes.HOME else Routes.WELCOME }
 
     var selectedMovement by remember { mutableStateOf<Movement?>(null) }
     var selectedBudget by remember { mutableStateOf<CategoryBudget?>(null) }
+    var selectedNews by remember { mutableStateOf<NewsItem?>(null) }
 
     fun goHome() = navController.navigate(Routes.HOME) { popUpTo(0) }
 
@@ -131,6 +147,7 @@ fun AppNavigation() {
             )
         }
         composable(Routes.HOME) {
+            RequestNotificationPermission()
             LaunchedEffect(Unit) {
                 authViewModel.loadProfile()
                 financeViewModel.loadSummary()
@@ -158,7 +175,8 @@ fun AppNavigation() {
                 loaded = finance.loaded,
                 error = finance.error,
                 currencySymbol = currencySymbol,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onRetry = { financeViewModel.loadSummary() }
             )
         }
         composable(Routes.NEW_MOVEMENT) {
@@ -296,8 +314,21 @@ fun AppNavigation() {
                 isLoading = news.isLoading,
                 error = news.error,
                 onRetry = newsViewModel::load,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onItemClick = { item ->
+                    selectedNews = item
+                    navController.navigate(Routes.NEWS_DETAIL)
+                }
             )
+        }
+        composable(Routes.NEWS_DETAIL) {
+            // Sin noticia seleccionada (p. ej. tras recrear la actividad) no hay nada que mostrar.
+            val news = selectedNews
+            if (news == null) {
+                LaunchedEffect(Unit) { navController.popBackStack(Routes.NEWS, inclusive = false) }
+                return@composable
+            }
+            NewsDetailScreen(item = news, onBack = { navController.popBackStack() })
         }
     }
 }

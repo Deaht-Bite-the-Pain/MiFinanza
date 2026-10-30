@@ -69,7 +69,8 @@ fun ReportsScreen(
     loaded: Boolean,
     error: String?,
     currencySymbol: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onRetry: () -> Unit = {}
 ) {
     StatusBarIcons(dark = true)
 
@@ -125,7 +126,7 @@ fun ReportsScreen(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            error?.let { ErrorBanner(it) }
+            error?.let { ErrorBanner(it, onRetry = onRetry) }
 
             when {
                 !loaded -> if (error == null) LoadingBox()

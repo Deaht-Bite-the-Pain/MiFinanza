@@ -130,7 +130,7 @@ fun BudgetScreen(
                     )
                 }
 
-                financeState.error?.let { ErrorBanner(it) }
+                financeState.error?.let { ErrorBanner(it, onRetry = financeViewModel::loadSummary) }
 
                 if (!financeState.loaded) {
                     if (financeState.error == null) LoadingBox()

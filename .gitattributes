@@ -1,0 +1,3 @@
+# El wrapper de Gradle debe tener saltos de línea LF para ejecutarse en Linux y macOS.
+gradlew text eol=lf
+*.bat text eol=crlf

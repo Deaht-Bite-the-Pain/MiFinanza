@@ -106,15 +106,35 @@ fun PrimaryButton(
 
 /** Mensaje de error (rojo suave) para fallos de autenticación o de red. */
 @Composable
-fun ErrorBanner(message: String, modifier: Modifier = Modifier) {
-    Box(
+fun ErrorBanner(message: String, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null) {
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .background(Danger100, RoundedCornerShape(10.dp))
             .border(1.dp, Danger500, RoundedCornerShape(10.dp))
-            .padding(12.dp)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(message, fontFamily = Manrope, fontSize = 12.5.sp, lineHeight = 18.sp, color = Danger500)
+        Text(
+            message,
+            fontFamily = Manrope,
+            fontSize = 12.5.sp,
+            lineHeight = 18.sp,
+            color = Danger500,
+            modifier = Modifier.weight(1f)
+        )
+        if (onRetry != null) {
+            Text(
+                "REINTENTAR",
+                fontFamily = Manrope,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                letterSpacing = 0.5.sp,
+                color = Danger500,
+                modifier = Modifier.clickable(onClick = onRetry)
+            )
+        }
     }
 }
 
